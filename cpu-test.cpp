@@ -7,10 +7,10 @@
 int register_pair_union() {
   register_pair foo;
 
-  foo.small.high = 0;
-  foo.small.low = 10;
+  foo.high = 0;
+  foo.low = 10;
 
-  return foo.big == 10;
+  return foo.full == 10;
 }
 
 int main() {

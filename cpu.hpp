@@ -19,8 +19,27 @@ typedef union register_pair {
 #else
 #error Unrecognized byte order!
 #endif
-  } small;
-  int big:16;
+  };
+  unsigned int full:16;
 } register_pair;
+
+const int FLAG_Z = 1 << 7; // zero flag
+const int FLAG_N = 1 << 6; // subtract flag
+const int FLAG_H = 1 << 5; // half-carry flag
+const int FLAG_C = 1 << 4; // carry flag
+
+const unsigned int INITIAL_SP = 0xfffe;
+const unsigned int INITIAL_PC = 0x0100;
+
+class CPU {
+public:
+  CPU();
+
+  register_pair af;
+  register_pair bc;
+  register_pair de;
+  unsigned int sp:16; // stack pointer
+  unsigned int pc:16; // program counter
+};
 
 #endif // #ifndef CPU_H

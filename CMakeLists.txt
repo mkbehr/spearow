@@ -10,3 +10,5 @@ set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(cpu-test cpu-test.cpp)
+
+add_library(cpu cpu.cpp)

@@ -102,4 +102,6 @@
   (Second) argument: same as 0x40-0x7f
  */
 
+const unsigned char OPC_HALT = 0x76;
+
 #endif
