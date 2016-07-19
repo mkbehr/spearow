@@ -35,9 +35,12 @@ class CPU {
 public:
   CPU();
 
+  void updateFlags(int z, int n, int h, int c); // TODO implementation
+
   register_pair af;
   register_pair bc;
   register_pair de;
+  register_pair hl;
   unsigned int sp:16; // stack pointer
   unsigned int pc:16; // program counter
 };

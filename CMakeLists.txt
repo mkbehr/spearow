@@ -12,3 +12,5 @@ set(CMAKE_CXX_STANDARD 14)
 add_executable(cpu-test cpu-test.cpp)
 
 add_library(cpu cpu.cpp)
+
+add_library(opcodes opcodes.cpp)
