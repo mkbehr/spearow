@@ -2,6 +2,8 @@
 
 #define CPU_H
 
+#include <cstdint>
+
 #ifndef __BYTE_ORDER__
 #error Unknown byte order. Set __BYTE_ORDER__ to the appropriate value.
 #endif
@@ -20,7 +22,7 @@ typedef union register_pair {
 #error Unrecognized byte order!
 #endif
   };
-  unsigned int full:16;
+  uint16_t full;
 } register_pair;
 
 const int FLAG_Z = 1 << 7; // zero flag
@@ -41,8 +43,8 @@ public:
   register_pair bc;
   register_pair de;
   register_pair hl;
-  unsigned int sp:16; // stack pointer
-  unsigned int pc:16; // program counter
+  uint16_t sp; // stack pointer
+  uint16_t pc; // program counter
 };
 
 #endif // #ifndef CPU_H

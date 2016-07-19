@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
@@ -15,6 +16,84 @@ void unimp(unsigned char opcode) {
   exit(0);
 }
 
+// Get address of 8-bit registers or memory locations in this order:
+// B, D, H, (HL)
+uint8_t *reg_8_high_or_indirect(CPU &cpu, int n) {
+  switch (n) {
+  case 0:
+    return &cpu.bc.high;
+  case 1:
+    return &cpu.de.high;
+  case 2:
+    return &cpu.hl.high;
+  case 3:
+    fprintf(stderr, "reg_8_high_or_indirect: indirection unimplemented\n");
+    exit(0);
+    break;
+  default:
+    throw std::logic_error("Bad opcode argument bits");
+  }
+}
+
+// Get address of 8-bit registers in this order:
+// C, E, L, A
+uint8_t *reg_8_low(CPU &cpu, int n) {
+  switch (n) {
+  case 0:
+    return &cpu.bc.low;
+  case 1:
+    return &cpu.de.low;
+  case 2:
+    return &cpu.hl.low;
+  case 3:
+    return &cpu.af.high;
+  default:
+    throw std::logic_error("Bad opcode argument bits");
+  }
+}
+
+// Get address of the nth 16-bit register, in order of: BC, DE, HL, SP
+uint16_t *reg_16(CPU &cpu, int n) {
+  switch (n) {
+  case 0:
+    return &cpu.bc.full;
+  case 1:
+    return &cpu.de.full;
+  case 2:
+    return &cpu.hl.full;
+  case 3:
+    return &cpu.sp;
+  default:
+    throw std::logic_error("Bad opcode argument bits");
+  }
+}
+
+// Get indirect address from (BC), (DE), (HL+), or (HL-). In the case
+// of (HL+) or (HL-), increment or decrement HL.
+uint8_t *reg_16_deref_and_modify(CPU &cpu, int n) {
+  uint16_t addr;
+  switch (n) {
+  case 0:
+    addr = cpu.bc.full;
+    break;
+  case 1:
+    addr = cpu.de.full;
+    break;
+  case 2:
+    addr = cpu.hl.full;
+    cpu.hl.full++;
+    break;
+  case 3:
+    addr = cpu.hl.full;
+    cpu.hl.full--;
+    break;
+  default:
+    throw std::logic_error("Bad opcode argument bits");
+  }
+  fprintf(stderr, "reg_indirect_16: unimplemented\n");
+  exit(0);
+}
+
 int operate(CPU &cpu, unsigned char *op) {
 
   // Execute an opcode. Returns the number of machine cycles it took
@@ -27,6 +106,135 @@ int operate(CPU &cpu, unsigned char *op) {
   // Opcode table is divided into four regions by top two bits of opcode.
   switch (opcode & 0xC0) {
   case 0x00:
+
+    // Various opcodes, divided into groups by bits 4 through 7
+    switch (opcode & 0xf) {
+    case 0:
+      switch (opcode) {
+      case 0x00: // 00: NOP
+        return 1;
+      case 0x10: // 10: STOP
+        break;
+      case 0x20: // 20: JR NZ,r8
+        break;
+      case 0x30: // 30: JR NC,r8
+        break;
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 1: // 01, 11, 21, 31: 16-bit LD. 3 cycles. Flags unmodified.
+    {
+      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      *arg = (op[1] << 8) + op[2];
+      return 3;
+    }
+    case 2: // 02, 12, 22, 32: 8-bit LD from register A to indirect
+            // address. 2 cycles. Flags unmodified. May increment or
+            // decrement HL.
+    {
+      uint8_t *dst = reg_16_deref_and_modify(cpu, (opcode >> 4) & 0x3);
+      *dst = cpu.af.high;
+      return 2;
+    }
+    case 3: // 03, 13, 23, 33: 16-bit INC. 2 cycles. Flags unmodified.
+    {
+      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      (*arg)++;
+      return 2;
+    }
+    case 4: // 04, 14, 24, 34: 8-bit INC on high registers or (HL). 1
+            // cycle, unless (HL) was dereferenced. Modifies flags Z, N, H.
+    {
+      uint8_t *arg = reg_8_high_or_indirect(cpu, (opcode >> 4) & 0x3);
+      uint8_t result = *arg+1;
+      int carryH = (result & 0x10) != (*arg & 0x10);
+      *arg = result;
+      cpu.updateFlags(!result, 0, carryH, -1);
+      return (opcode == 0x34) ? 1 : 3;
+    }
+    case 5: // 05, 15, 25, 35: 8-bit DEC on high registers or (HL). 1
+            // cycle, unless (HL) was dereferenced. Modifies flags Z, N, H.
+    {
+      uint8_t *arg = reg_8_high_or_indirect(cpu, (opcode >> 4) & 0x3);
+      uint8_t result = *arg-1;
+      int carryH = (result & 0x10) != (*arg & 0x10);
+      *arg = result;
+      cpu.updateFlags(!result, 1, carryH, -1);
+      return (opcode == 0x35) ? 1 : 3;
+    }
+    case 6: // 06, 16, 26, 36: 8-bit immediate LD to high-registers or
+            // (HL). 2 cycles, unless (HL) was dereferenced. Flags
+            // unmodified.
+    {
+      uint8_t *dst = reg_8_high_or_indirect(cpu, (opcode >> 4) & 0x3);
+      *dst = op[1];
+      return (opcode == 0x36) ? 2 : 3;
+    }
+    case 7:
+      switch (opcode) {
+      case 0x07: // 07: RLCA. Rotate A left, MSB to carry flag and
+                 // LSB. All other flags are unset. 1 cycle.
+      {
+        unsigned int rotated = cpu.af.high << 1;
+        cpu.af.high = (rotated & 0xff) + (rotated >> 8); // rotate high bit to low bit
+        // Note: There are some inconsistencies in documentation re
+        // whether Z flag is always unset or set according to the
+        // result. See https://hax.iimarck.us/post/12019/ for discussion.
+        cpu.updateFlags(0, 0, 0, rotated >> 8);
+        return 1;
+      }
+      case 0x17: // 17: RLA. Rotate A left through carry flag. All
+                 // other flags are unset. 1 cycle.
+      {
+        unsigned int rotated = cpu.af.high << 1;
+        cpu.af.high = (rotated & 0xff) + !!(cpu.af.low & FLAG_C); // rotate carry flag to low bit
+        // Note: There are some inconsistencies in documentation re
+        // whether Z flag is always unset or set according to the
+        // result. See https://hax.iimarck.us/post/12019/ for discussion.
+        cpu.updateFlags(0, 0, 0, rotated >> 8);
+        return 1;
+      }
+      case 0x27: // DAA. Modify A so that if the previous instruction
+                 // was an arithmetic operation, and its arguments are
+                 // interpreted as binary-coded decimal (BCD) numbers,
+                 // the value of A represents the BCD result. 1 cycle.
+                 // Flags Z, H, and C modified.
+      {
+        // DAA algorithm taken from http://z80-heaven.wikidot.com/instructions-set:daa
+        int newFlagC = 0;
+        if (((cpu.af.high & 0xf) > 9) || (cpu.af.low & FLAG_H)) {
+          cpu.af.high += 6;
+        }
+        if (((cpu.af.high & 0xf0) > 0x90) || (cpu.af.low & FLAG_C)) {
+          newFlagC = 1;
+          cpu.af.high += 0x60;
+        }
+        cpu.updateFlags(!cpu.af.high, -1, 0, newFlagC);
+        return 1;
+      }
+      case 0x37: // SCF. Sets carry flag. 1 cycle, other flags unmodified.
+        cpu.updateFlags(-1, -1, -1, 1);
+        return 1;
+      }
+      break;
+    case 8:
+      break;
+    case 9:
+      break;
+    case 0xa:
+      break;
+    case 0xb:
+      break;
+    case 0xc:
+      break;
+    case 0xd:
+      break;
+    case 0xf:
+      break;
+    default:
+      throw std::logic_error("Bad opcode low bits");
+    }
 
     unimp(opcode);
     return 0;
@@ -67,6 +275,7 @@ int operate(CPU &cpu, unsigned char *op) {
       break;
     case 5: // L
       dst = &cpu.hl.low;
+      break;
     case 6: // (HL)
       // TODO: look up value of HL register, convert to pointer into
       // gameboy's memory
