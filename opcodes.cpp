@@ -216,22 +216,104 @@ int operate(CPU &cpu, unsigned char *op) {
       case 0x37: // SCF. Sets carry flag. 1 cycle, other flags unmodified.
         cpu.updateFlags(-1, -1, -1, 1);
         return 1;
+      default:
+        throw std::logic_error("Bad opcode");
       }
+      throw std::logic_error("Exited switch statement"); // unreachable
+    case 8: // TODO: LD or JR
       break;
-    case 8:
-      break;
-    case 9:
-      break;
-    case 0xa:
-      break;
-    case 0xb:
-      break;
-    case 0xc:
-      break;
-    case 0xd:
-      break;
+    case 9: // 09, 19, 29, 39: 16-bit ADD to HL. Modifies all flags
+            // but Z. 2 cycles.
+    {
+      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      int result = cpu.hl.full + *arg;
+      // For 16-bit arithmetic, carry flags pay attention to the high
+      // byte.
+      int carryH = (result & (1<<12)) !=
+        ((cpu.hl.full & (1<<12)) ^ (*arg & (1<<12)));
+      int carryC = !!(result & (1<<16));
+      cpu.updateFlags(-1, 0, carryH, carryC);
+      cpu.hl.full = result & 0xffff;
+      return 2;
+    }
+    case 0xa: // 0a, 1a, 2a, 3a: 8-bit LD from indirect address to A.
+              // 2 cycles. Flags unmodified. May increment or
+              // decrement HL.
+    {
+      uint8_t *src = reg_16_deref_and_modify(cpu, (opcode >> 4) & 0x3);
+      cpu.af.high = *src;
+      return 2;
+    }
+    case 0xb: // 0b, 1b, 2b, 3b: 16-bit DEC. 2 cycles. Flags unmodified.
+    {
+      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      (*arg)--;
+      return 2;
+    }
+    case 0xc: // 0c, 1c, 2c, 3c: 8-bit INC on low registers or A. 1
+              // cycle. Modifies flags Z, N, H.
+    {
+      uint8_t *arg = reg_8_low(cpu, (opcode >> 4) & 0x3);
+      uint8_t result = *arg+1;
+      int carryH = (result & 0x10) != (*arg & 0x10);
+      *arg = result;
+      cpu.updateFlags(!result, 0, carryH, -1);
+      return 1;
+    }
+    case 0xd: // 0c, 1c, 2c, 3c: 8-bit INC on low registers or A. 1
+              // cycle. Modifies flags Z, N, H.
+    {
+      uint8_t *arg = reg_8_low(cpu, (opcode >> 4) & 0x3);
+      uint8_t result = *arg-1;
+      int carryH = (result & 0x10) != (*arg & 0x10);
+      *arg = result;
+      cpu.updateFlags(!result, 1, carryH, -1);
+      return 1;
+    }
+    case 0xe: // 0e, 1e, 2e, 3e: 8-bit immediate LD to low registers.
+              // 2 cycles. Flags unmodified.
+    {
+      uint8_t *dst = reg_8_low(cpu, (opcode >> 4) & 0x3);
+      *dst = op[1];
+      return 2;
+    }
     case 0xf:
-      break;
+      switch (opcode) {
+      case 0x0f: // 0f: RRCA. Rotate A right, LSB to carry flag and
+                 // MSB. All other flags are unset. 1 cycle.
+      {
+        unsigned int rotated = cpu.af.high >> 1;
+        int flagC = (cpu.af.high & 1);
+        cpu.af.high = rotated + (flagC << 7);
+        cpu.updateFlags(0, 0, 0, flagC);
+        return 1;
+      }
+      case 0x1f: // 1f: RRA. Rotate A right through carry flag. All
+                 // other flags are unset. 1 cycle.
+      {
+        unsigned int rotated = cpu.af.high >> 1;
+        int flagC = (cpu.af.high & 1);
+        cpu.af.high = rotated + (!!(cpu.af.low & FLAG_C) << 7);
+        cpu.updateFlags(0, 0, 0, flagC);
+        return 1;
+      }
+      case 0x2f: // 2f: CPL. Complement A register. Flags N and H
+                 // set. 1 cycle.
+      {
+        cpu.af.high = ~cpu.af.high;
+        cpu.updateFlags(-1, 1, 1, -1);
+        return 1;
+      }
+      case 0x3f: // 3f: Complement carry flag. Flags N and H unset. 1
+                 // cycle.
+      {
+        cpu.updateFlags(-1, 0, 0, !(cpu.af.low & FLAG_C));
+        return 1;
+      }
+      default:
+        throw std::logic_error("Bad opcode");
+      }
+      throw std::logic_error("Exited switch statement"); // unreachable
     default:
       throw std::logic_error("Bad opcode low bits");
     }
