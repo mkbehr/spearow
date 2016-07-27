@@ -27,9 +27,7 @@ uint8_t *reg_8_high_or_indirect(CPU &cpu, int n) {
   case 2:
     return &cpu.hl.high;
   case 3:
-    fprintf(stderr, "reg_8_high_or_indirect: indirection unimplemented\n");
-    exit(0);
-    break;
+    return cpu.mem_ptr(cpu.hl.full);
   default:
     throw std::logic_error("Bad opcode argument bits");
   }
@@ -90,8 +88,7 @@ uint8_t *reg_16_deref_and_modify(CPU &cpu, int n) {
   default:
     throw std::logic_error("Bad opcode argument bits");
   }
-  fprintf(stderr, "reg_indirect_16: unimplemented\n");
-  exit(0);
+  return cpu.mem_ptr(addr);
 }
 
 int operate(CPU &cpu, unsigned char *op) {
@@ -359,13 +356,11 @@ int operate(CPU &cpu, unsigned char *op) {
       dst = &cpu.hl.low;
       break;
     case 6: // (HL)
-      // TODO: look up value of HL register, convert to pointer into
-      // gameboy's memory
     {
       unsigned int addr = cpu.hl.full;
       cycles++;
-      illop(opcode);
-      return 0;
+      dst = cpu.mem_ptr(addr);
+      break;
     }
     case 7: // A
       dst = &cpu.af.high;
@@ -395,13 +390,11 @@ int operate(CPU &cpu, unsigned char *op) {
       src = &cpu.hl.low;
       break;
     case 6: // (HL)
-      // TODO: look up value of HL register, convert to pointer into
-      // gameboy's memory
     {
       unsigned int addr = cpu.hl.full;
       cycles++;
-      illop(opcode);
-      return 0;
+      src = cpu.mem_ptr(addr);
+      break;
     }
     case 7: // A
       src = &cpu.af.high;
@@ -444,13 +437,11 @@ int operate(CPU &cpu, unsigned char *op) {
       arg = &cpu.hl.low;
       break;
     case 6: // (HL)
-      // TODO: look up value of HL register, convert to pointer into
-      // gameboy's memory
     {
       unsigned int addr = cpu.hl.full;
       cycles++;
-      illop(opcode);
-      return 0;
+      arg = cpu.mem_ptr(addr);
+      break;
     }
     case 7: // A
       arg = &cpu.af.high;
