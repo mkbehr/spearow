@@ -7,7 +7,7 @@
 
 CPU::CPU()
   : af({.full=0}), bc({.full=0}), de({.full=0}), hl({.full=0}),
-    sp(INITIAL_SP), pc(INITIAL_PC)
+    sp(INITIAL_SP), pc(INITIAL_PC), next_pc(0)
 {
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
@@ -77,5 +77,16 @@ uint8_t *CPU::mem_ptr(uint16_t addr) {
   }
 
   fprintf(stderr, "Access to unimplemented address %04x\n", addr);
+  exit(0);
+}
+
+
+void CPU::stop() {
+  fprintf(stderr, "Unimplemented feature: stop\n");
+  exit(0);
+}
+
+void CPU::halt() {
+  fprintf(stderr, "Unimplemented feature: halt\n");
   exit(0);
 }

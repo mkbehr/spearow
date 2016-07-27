@@ -99,10 +99,15 @@ public:
   uint16_t sp; // stack pointer
   uint16_t pc; // program counter
 
+  uint16_t next_pc; // Next PC value, to be set by jumps
+
   uint8_t ram[RAM_SIZE];
   uint8_t highRam[HIGH_RAM_SIZE];
 
   uint8_t *mem_ptr(uint16_t addr);
+
+  void stop(); // TODO
+  void halt(); // TODO
 
 private:
   void postLogoSetup();

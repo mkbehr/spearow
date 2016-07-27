@@ -91,7 +91,7 @@ uint8_t *reg_16_deref_and_modify(CPU &cpu, int n) {
   return cpu.mem_ptr(addr);
 }
 
-int operate(CPU &cpu, unsigned char *op) {
+int operate(CPU &cpu, uint8_t *op) {
 
   // Execute an opcode. Returns the number of machine cycles it took
   // (1 machine cycle = 4 clock cycles)
@@ -111,11 +111,25 @@ int operate(CPU &cpu, unsigned char *op) {
       case 0x00: // 00: NOP
         return 1;
       case 0x10: // 10: STOP
-        break;
-      case 0x20: // 20: JR NZ,r8
-        break;
-      case 0x30: // 30: JR NC,r8
-        break;
+        cpu.stop();
+        return 1;
+      case 0x20: // 20: JR NZ,r8. 3 cycles if we jump, 2 otherwise.
+                 // Flags unmodified.
+        if (cpu.af.low & FLAG_Z) {
+          return 2;
+        } else {
+          // JR interprets its arg as a signed int.
+          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          return 3;
+        }
+      case 0x30: // 30: JR NC,r8. 3 cycles if we jump, 2 otherwise.
+                 // Flags unmodified.
+        if (cpu.af.low & FLAG_C) {
+          return 2;
+        } else {
+          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          return 3;
+        }
       default:
         throw std::logic_error("Bad opcode bits");
       }
@@ -123,7 +137,8 @@ int operate(CPU &cpu, unsigned char *op) {
     case 1: // 01, 11, 21, 31: 16-bit LD. 3 cycles. Flags unmodified.
     {
       uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
-      *arg = (op[1] << 8) + op[2];
+      // Z80 (and therefore gameboy is little-endian)
+      *arg = op[1] + (op[2] << 8);
       return 3;
     }
     case 2: // 02, 12, 22, 32: 8-bit LD from register A to indirect
@@ -217,7 +232,40 @@ int operate(CPU &cpu, unsigned char *op) {
         throw std::logic_error("Bad opcode");
       }
       throw std::logic_error("Exited switch statement"); // unreachable
-    case 8: // TODO: LD or JR
+    case 8:
+      switch (opcode) {
+      case 0x08: // 08: 16-bit load from SP to indirect. 5 cycles,
+                 // flags unmodified.
+      {
+        uint16_t addr_low = op[1] + (op[2] << 8);
+        uint16_t addr_high = addr_low + 1;
+        *cpu.mem_ptr(addr_low) = cpu.sp & 0xff;
+        *cpu.mem_ptr(addr_high) = cpu.sp >> 8;
+        return 5;
+      }
+      case 0x18: // 18: unconditional relative jump. 3 cycles, flags
+                 // unmodified.
+      {
+        cpu.next_pc = cpu.pc + (int8_t) op[1];
+        return 3;
+      }
+      case 0x28: // 28: JR Z
+        if (cpu.af.low & FLAG_Z) {
+          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          return 3;
+        } else {
+          return 2;
+        }
+      case 0x38: // 38: JR C
+        if (cpu.af.low & FLAG_C) {
+          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          return 3;
+        } else {
+          return 2;
+        }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
       break;
     case 9: // 09, 19, 29, 39: 16-bit ADD to HL. Modifies all flags
             // but Z. 2 cycles.
@@ -314,9 +362,7 @@ int operate(CPU &cpu, unsigned char *op) {
     default:
       throw std::logic_error("Bad opcode low bits");
     }
-
-    unimp(opcode);
-    return 0;
+    throw std::logic_error("Exited switch statement"); // unreachable
 
   case 0x40:
 
@@ -327,9 +373,9 @@ int operate(CPU &cpu, unsigned char *op) {
 
     cycles = 1;
 
-    if (opcode == OPC_HALT) {
-      unimp(opcode);
-      return 0;
+    if (opcode == OPC_HALT) { // 76: HALT. 1 cycle, flags unaffected.
+      cpu.halt();
+      return 1;
     }
 
     unsigned char (*src), (*dst);
