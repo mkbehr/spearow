@@ -80,6 +80,17 @@ uint8_t *CPU::mem_ptr(uint16_t addr) {
   exit(0);
 }
 
+uint8_t CPU::stack_pop() {
+  uint8_t out = *mem_ptr(sp);
+  sp++;
+  return out;
+}
+
+void CPU::stack_push(uint8_t x) {
+  sp--;
+  *mem_ptr(sp) = x;
+}
+
 
 void CPU::stop() {
   fprintf(stderr, "Unimplemented feature: stop\n");

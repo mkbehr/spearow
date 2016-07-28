@@ -104,4 +104,7 @@
 
 const unsigned char OPC_HALT = 0x76;
 
+int operate(CPU &cpu, uint8_t *op);
+inline void cb_prefix_operate(CPU &cpu, uint8_t cb_op);
+
 #endif

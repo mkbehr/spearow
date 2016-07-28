@@ -106,8 +106,14 @@ public:
 
   uint8_t *mem_ptr(uint16_t addr);
 
+  uint8_t stack_pop();
+  void stack_push(uint8_t x);
+
   void stop(); // TODO
   void halt(); // TODO
+
+  void disableInterrupts(); // TODO
+  void enableInterrupts(); // TODO
 
 private:
   void postLogoSetup();

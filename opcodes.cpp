@@ -6,12 +6,12 @@
 #include "cpu.hpp"
 #include "opcodes.hpp"
 
-void illop(unsigned char opcode) {
+void illop(uint8_t opcode) {
   fprintf(stderr, "Illegal operation %02x\n", opcode);
   exit(0);
 }
 
-void unimp(unsigned char opcode) {
+void unimp(uint8_t opcode) {
   fprintf(stderr, "Unimplemented operation %02x\n", opcode);
   exit(0);
 }
@@ -51,7 +51,7 @@ uint8_t *reg_8_low(CPU &cpu, int n) {
 }
 
 // Get address of the nth 16-bit register, in order of: BC, DE, HL, SP
-uint16_t *reg_16(CPU &cpu, int n) {
+uint16_t *reg_16_or_sp(CPU &cpu, int n) {
   switch (n) {
   case 0:
     return &cpu.bc.full;
@@ -61,6 +61,22 @@ uint16_t *reg_16(CPU &cpu, int n) {
     return &cpu.hl.full;
   case 3:
     return &cpu.sp;
+  default:
+    throw std::logic_error("Bad opcode argument bits");
+  }
+}
+
+// Get address of the nth 16-bit register, in order of: BC, DE, HL, AF
+uint16_t *reg_16_or_af(CPU &cpu, int n) {
+  switch (n) {
+  case 0:
+    return &cpu.bc.full;
+  case 1:
+    return &cpu.de.full;
+  case 2:
+    return &cpu.hl.full;
+  case 3:
+    return &cpu.af.full;
   default:
     throw std::logic_error("Bad opcode argument bits");
   }
@@ -96,7 +112,7 @@ int operate(CPU &cpu, uint8_t *op) {
   // Execute an opcode. Returns the number of machine cycles it took
   // (1 machine cycle = 4 clock cycles)
 
-  unsigned char opcode = *op;
+  uint8_t opcode = *op;
 
   int cycles;
 
@@ -136,7 +152,7 @@ int operate(CPU &cpu, uint8_t *op) {
       break;
     case 1: // 01, 11, 21, 31: 16-bit LD. 3 cycles. Flags unmodified.
     {
-      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      uint16_t *arg = reg_16_or_sp(cpu, (opcode >> 4) & 0x3);
       // Z80 (and therefore gameboy is little-endian)
       *arg = op[1] + (op[2] << 8);
       return 3;
@@ -151,7 +167,7 @@ int operate(CPU &cpu, uint8_t *op) {
     }
     case 3: // 03, 13, 23, 33: 16-bit INC. 2 cycles. Flags unmodified.
     {
-      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      uint16_t *arg = reg_16_or_sp(cpu, (opcode >> 4) & 0x3);
       (*arg)++;
       return 2;
     }
@@ -270,7 +286,7 @@ int operate(CPU &cpu, uint8_t *op) {
     case 9: // 09, 19, 29, 39: 16-bit ADD to HL. Modifies all flags
             // but Z. 2 cycles.
     {
-      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      uint16_t *arg = reg_16_or_sp(cpu, (opcode >> 4) & 0x3);
       int result = cpu.hl.full + *arg;
       // For 16-bit arithmetic, carry flags pay attention to the high
       // byte.
@@ -291,7 +307,7 @@ int operate(CPU &cpu, uint8_t *op) {
     }
     case 0xb: // 0b, 1b, 2b, 3b: 16-bit DEC. 2 cycles. Flags unmodified.
     {
-      uint16_t *arg = reg_16(cpu, (opcode >> 4) & 0x3);
+      uint16_t *arg = reg_16_or_sp(cpu, (opcode >> 4) & 0x3);
       (*arg)--;
       return 2;
     }
@@ -378,7 +394,7 @@ int operate(CPU &cpu, uint8_t *op) {
       return 1;
     }
 
-    unsigned char (*src), (*dst);
+    uint8_t (*src), (*dst);
 
     // Bits 2 through 4 determine the first argument (destination) (in
     // order of most-least significant, starting at 0)
@@ -460,7 +476,7 @@ int operate(CPU &cpu, uint8_t *op) {
 
     cycles = 1;
 
-    unsigned char *arg;
+    uint8_t *arg;
 
     // Bits 2 through 4 determine argument
     switch ((opcode >> 3) & 0x7) {
@@ -525,7 +541,7 @@ int operate(CPU &cpu, uint8_t *op) {
     }
     case 2: // SUB arg
     {
-      unsigned char subtractend = ~(*arg) + 1;
+      uint8_t subtractend = ~(*arg) + 1;
       int result = cpu.af.high + subtractend;
       int carryH = (result & (1<<4)) !=
         ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
@@ -536,7 +552,7 @@ int operate(CPU &cpu, uint8_t *op) {
     }
     case 3: // SBC arg
     {
-      unsigned char subtractend = ~(*arg) + 1;
+      uint8_t subtractend = ~(*arg) + 1;
       int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
       int carryH = (result & (1<<4)) !=
         ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
@@ -547,21 +563,21 @@ int operate(CPU &cpu, uint8_t *op) {
     }
     case 4: // AND arg
     {
-      unsigned char result = cpu.af.high & *arg;
+      uint8_t result = cpu.af.high & *arg;
       cpu.af.high = result;
       cpu.updateFlags(!result, 0, 1, 0);
       break;
     }
     case 5: // XOR arg
     {
-      unsigned char result = cpu.af.high ^ *arg;
+      uint8_t result = cpu.af.high ^ *arg;
       cpu.af.high = result;
       cpu.updateFlags(!result, 0, 1, 0);
       break;
     }
     case 6: // OR arg
     {
-      unsigned char result = cpu.af.high | *arg;
+      uint8_t result = cpu.af.high | *arg;
       cpu.af.high = result;
       cpu.updateFlags(!result, 0, 1, 0);
       break;
@@ -569,7 +585,7 @@ int operate(CPU &cpu, uint8_t *op) {
     case 7: // CP arg
     {
       // Same as SUB, but don't change A
-      unsigned char subtractend = ~(*arg) + 1;
+      uint8_t subtractend = ~(*arg) + 1;
       int result = cpu.af.high + subtractend;
       int carryH = (result & (1<<4)) !=
         ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
@@ -585,11 +601,551 @@ int operate(CPU &cpu, uint8_t *op) {
 
   case 0xC0:
 
-    unimp(opcode);
-    return 0;
+    switch (opcode & 0xf) {
+    case 0x0:
+      switch (opcode) {
+      case 0xC0: // C0: RET NZ: return if Z flag unset. 2 or 5 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          return 2;
+        } else {
+          // High address byte will be on top of stack, low byte below
+          // it.
+          uint8_t addr_high = cpu.stack_pop();
+          uint8_t addr_low = cpu.stack_pop();
+          uint16_t addr = (addr_high << 8) + addr_low;
+          cpu.next_pc = addr;
+          return 5;
+        }
+      }
+      case 0xD0: // D0: RET NC: return if C flag unset. 2 or 5 cycles,
+                 // flags unmodified.
+        {
+        if (cpu.af.low & FLAG_C) {
+          return 2;
+        } else {
+          // High address byte will be on top of stack, low byte below
+          // it.
+          uint8_t addr_high = cpu.stack_pop();
+          uint8_t addr_low = cpu.stack_pop();
+          uint16_t addr = (addr_high << 8) + addr_low;
+          cpu.next_pc = addr;
+          return 5;
+        }
+      }
+      case 0xE0: // E0: LDH (a8), A. Writes contents of A to 0xff00
+                 // plus argument. 3 cycles, flags unmodified.
+      {
+        uint16_t addr = 0xff00 + op[1];
+        *cpu.mem_ptr(addr) = cpu.af.high;
+        return 3;
+      }
+      case 0xF0: // F0: LDH A,(a8). Reads contents of 0xff00 plus
+                 // argument into A. 3 cycles, flags unmodified.
+      {
+        uint16_t addr = 0xff00 + op[1];
+        cpu.af.high = *cpu.mem_ptr(addr);
+        return 3;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0x1: // C1, D1, E1, F1: 16-bit POP to BC, DE, HL, or AF.
+              // Flags unmodified, unless of course we popped into AF.
+              // 3 cycles.
+    {
+      uint8_t val_high = cpu.stack_pop();
+      uint8_t val_low = cpu.stack_pop();
+      uint16_t val = (val_high << 8) + val_low;
+      *reg_16_or_af(cpu, (opcode >> 4) & 0x3) = val;
+      return 3;
+    }
+    case 0x2:
+      switch (opcode) {
+      case 0xC2: // Absolute jump if NZ. 3 or 4 cycles, flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          return 3;
+        } else {
+          // Low byte first.
+          cpu.next_pc = op[1] + (op[2] << 8);
+          return 4;
+        }
+      }
+      case 0xD2: // Absolute jump if NC. 3 or 4 cycles, flags unmodified.
+      {
+        if (cpu.af.low & FLAG_C) {
+          return 3;
+        } else {
+          // Low byte first.
+          cpu.next_pc = op[1] + (op[2] << 8);
+          return 4;
+        }
+      }
+      case 0xE2: // Write A to 0xff00 plus C. 2 cycles, flags unmodified.
+      {
+        uint16_t addr = 0xff00 + cpu.bc.low;
+        *cpu.mem_ptr(addr) = cpu.af.high;
+        return 2;
+      }
+      case 0xF2: // Read 0xff00 plus C to A. 2 cycles, flags unmodified.
+      {
+        uint16_t addr = 0xff00 + cpu.bc.low;
+        cpu.af.high = *cpu.mem_ptr(addr);
+        return 2;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0x3:
+      switch (opcode) {
+      case 0xC3: // Unconditional absolute jump. 4 cycles.
+      {
+        cpu.next_pc = op[1] + (op[2] << 8);
+        return 4;
+      }
+      case 0xD3: // both illegal
+      case 0xE3:
+        illop(opcode);
+        return 0;
+      case 0xF3: // Disable interrupts (after next operation). 1 cycle,
+                 // flags unmodified.
+      {
+        cpu.disableInterrupts();
+        return 1;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+    case 0x4:
+      switch (opcode) {
+      case 0xC4: // Absolute call, conditional on NZ. 3 or 6 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          return 3;
+        } else {
+          // CALL operations (conditional or unconditional) are all 3
+          // bytes long.
+          uint16_t op_size = 3;
+          uint16_t return_addr = cpu.pc + op_size;
+          // Low byte goes on stack first.
+          cpu.stack_push(return_addr & 0xff);
+          cpu.stack_push(return_addr >> 8);
+          uint16_t call_addr = op[1] + (op[2] << 8);
+          cpu.next_pc = call_addr;
+          return 6;
+        }
+      }
+      case 0xD4: // Absolute call, conditional on NC. 3 or 6 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          return 3;
+        } else {
+          // CALL operations (conditional or unconditional) are all 3
+          // bytes long.
+          uint16_t op_size = 3;
+          uint16_t return_addr = cpu.pc + op_size;
+          // Low byte goes on stack first.
+          cpu.stack_push(return_addr & 0xff);
+          cpu.stack_push(return_addr >> 8);
+          uint16_t call_addr = op[1] + (op[2] << 8);
+          cpu.next_pc = call_addr;
+          return 6;
+        }
+      }
+      case 0xE4: // both illegal
+      case 0xF4:
+        illop(opcode);
+        return 0;
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0x5: // 16-bit PUSH from BC, DE, HL, or AF. 4 cycles, flags
+              // unmodified.
+    {
+      uint16_t val = *reg_16_or_af(cpu, (opcode >> 4) & 0x3);
+      cpu.stack_push(val & 0xff);
+      cpu.stack_push(val >> 8);
+      return 4;
+    }
+    case 0x6: // Some 8-bit math we didn't get to earlier. Always 2
+              // cycles, modifies all flags.
+      switch (opcode) {
+      case 0xC6: // ADD A,d8
+      {
+        int result = cpu.af.high + op[1];
+        // We carried from bit 3 iff bit 4 of the result isn't the same
+        // as the XOR of bits 4 of the arguments
+        int carryH = (result & (1<<4)) !=
+          ((cpu.af.high & (1<<4)) ^ (op[1] & (1<<4)));
+        int carryC = !!(result & (1<<8));
+        cpu.af.high = result & 0xff;
+        cpu.updateFlags(!result, 0, carryH, carryC);
+        return 2;
+      }
+      case 0xD6: // SUB d8
+      {
+        uint8_t subtractend = ~(op[1]) + 1;
+        int result = cpu.af.high + subtractend;
+        int carryH = (result & (1<<4)) !=
+          ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
+        int carryC = !!(result & (1<<8));
+        cpu.af.high = result & 0xff;
+        cpu.updateFlags(!result, 1, carryH, carryC);
+        return 2;
+      }
+      case 0xE6: // AND d8
+      {
+        uint8_t result = cpu.af.high & op[1];
+        cpu.af.high = result;
+        cpu.updateFlags(!result, 0, 1, 0);
+        return 2;
+      }
+      case 0xF6: // OR d8
+      {
+        uint8_t result = cpu.af.high | op[1];
+        cpu.af.high = result;
+        cpu.updateFlags(!result, 0, 1, 0);
+        return 2;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0x7: // RST: address onto stack, jump to fixed address. 4
+              // cycles, flags unmodified.
+    {
+      // AFAICT, this should push the address of the /next/
+      // instruction. Documentation is unclear.
+      uint16_t op_size = 3;
+      uint16_t return_addr = cpu.pc + op_size;
+      // Low byte goes on stack first.
+      cpu.stack_push(return_addr & 0xff);
+      cpu.stack_push(return_addr >> 8);
+
+      uint16_t call_addr = 0 + (opcode & 0x30);
+      cpu.next_pc = call_addr;
+
+      return 4;
+    }
+    case 0x8:
+      switch (opcode) {
+      case 0xC8: // Conditional return if Z flag set. 2 or 5 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          // High address byte will be on top of stack, low byte below
+          // it.
+          uint8_t addr_high = cpu.stack_pop();
+          uint8_t addr_low = cpu.stack_pop();
+          uint16_t addr = (addr_high << 8) + addr_low;
+          cpu.next_pc = addr;
+          return 5;
+        } else {
+          return 2;
+        }
+      }
+      case 0xD8: // Conditional return if C flag set. 2 or 5 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_C) {
+          // High address byte will be on top of stack, low byte below
+          // it.
+          uint8_t addr_high = cpu.stack_pop();
+          uint8_t addr_low = cpu.stack_pop();
+          uint16_t addr = (addr_high << 8) + addr_low;
+          cpu.next_pc = addr;
+          return 5;
+        } else {
+          return 2;
+        }
+      }
+      case 0xE8: // 16-bit add of 8-bit literal to stack pointer. 4
+                 // cycles. Note that flag Z is always unset.
+      {
+        int8_t arg = (int8_t) op[1];
+        int result = cpu.sp + arg;
+        // For 16-bit arithmetic, carry flags pay attention to the high
+        // byte.
+        int carryH = (result & (1<<12)) !=
+          ((cpu.sp & (1<<12)) ^ (arg & (1<<12)));
+        int carryC = !!(result & (1<<16));
+        cpu.updateFlags(0, 0, carryH, carryC);
+        cpu.sp = result & 0xffff;
+        return 4;
+      }
+      case 0xF8: // Add 8-bit literal to stack pointer, store in HL. 3
+                 // cycles. Flags set according to the addition, as in
+                 // op E8 (I think).
+      {
+        int8_t arg = (int8_t) op[1];
+        int result = cpu.sp + arg;
+        // For 16-bit arithmetic, carry flags pay attention to the high
+        // byte.
+        int carryH = (result & (1<<12)) !=
+          ((cpu.sp & (1<<12)) ^ (arg & (1<<12)));
+        int carryC = !!(result & (1<<16));
+        cpu.updateFlags(0, 0, carryH, carryC);
+        cpu.hl.full = result & 0xffff;
+        return 3;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0x9:
+      switch (opcode) {
+      case 0xC9: // RET: Unconditional return. 4 cycles.
+      {
+        // High address byte will be on top of stack, low byte below
+        // it.
+        uint8_t addr_high = cpu.stack_pop();
+        uint8_t addr_low = cpu.stack_pop();
+        uint16_t addr = (addr_high << 8) + addr_low;
+        cpu.next_pc = addr;
+        return 4;
+      }
+      case 0xD9: // RETI: Unconditional return and enable interrupts.
+                 // Is the timing the same as the EI instruction?
+                 // Unclear.
+      {
+        uint8_t addr_high = cpu.stack_pop();
+        uint8_t addr_low = cpu.stack_pop();
+        uint16_t addr = (addr_high << 8) + addr_low;
+        cpu.next_pc = addr;
+        cpu.enableInterrupts();
+        return 4;
+      }
+      case 0xE9: // JP HL: Jump to address in HL. I usually see it
+                 // written JP (HL) but that seems deceptive because I
+                 // don't think we're actually looking up anything
+                 // from memory. 1 cycle, flags unmodified.
+      {
+        cpu.next_pc = cpu.hl.full;
+        return 1;
+      }
+      case 0xF9: // LD SP,HL: Move HL into stack pointer. 2 cycles,
+                 // flags unmodified.
+      {
+        cpu.sp = cpu.hl.full;
+        return 2;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0xa:
+      switch (opcode) {
+      case 0xCA: // Absolute jump if Z. 3 or 4 cycles, flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          // Low byte first.
+          cpu.next_pc = op[1] + (op[2] << 8);
+          return 4;
+        } else {
+          return 3;
+        }
+      }
+      case 0xDA: // Absolute jump if C. 3 or 4 cycles, flags unmodified.
+      {
+        if (cpu.af.low & FLAG_C) {
+          // Low byte first.
+          cpu.next_pc = op[1] + (op[2] << 8);
+          return 4;
+        } else {
+          return 3;
+        }
+      }
+      case 0xEA: // Write A to provided address. 4 cycles, flags unmodified.
+      {
+        uint16_t addr = op[1] + (op[2] << 8);
+        *cpu.mem_ptr(addr) = cpu.af.high;
+        return 4;
+      }
+      case 0xFA: // Read provided address to A. 4 cycles, flags unmodified.
+      {
+        uint16_t addr = op[1] + (op[2] << 8);
+        cpu.af.high = *cpu.mem_ptr(addr);
+        return 4;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0xb:
+      switch (opcode) {
+      case 0xCB: // Various math functions. Some modify some flags.
+                 // All 2 cycles.
+      {
+        cb_prefix_operate(cpu, op[1]);
+        return 2;
+      }
+      case 0xDB: // both illegal
+      case 0xEB:
+        illop(opcode);
+        return 0;
+      case 0xFB: // Enable interrupts (after next operation). 1 cycle,
+                 // flags unmodified.
+      {
+        cpu.enableInterrupts();
+        return 1;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0xc:
+      switch (opcode) {
+      case 0xCC: // Absolute call, conditional on Z. 3 or 6 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          // CALL operations (conditional or unconditional) are all 3
+          // bytes long.
+          uint16_t op_size = 3;
+          uint16_t return_addr = cpu.pc + op_size;
+          // Low byte goes on stack first.
+          cpu.stack_push(return_addr & 0xff);
+          cpu.stack_push(return_addr >> 8);
+          uint16_t call_addr = op[1] + (op[2] << 8);
+          cpu.next_pc = call_addr;
+          return 6;
+        } else {
+          return 3;
+        }
+      }
+      case 0xDC: // Absolute call, conditional on C. 3 or 6 cycles,
+                 // flags unmodified.
+      {
+        if (cpu.af.low & FLAG_Z) {
+          // CALL operations (conditional or unconditional) are all 3
+          // bytes long.
+          uint16_t op_size = 3;
+          uint16_t return_addr = cpu.pc + op_size;
+          // Low byte goes on stack first.
+          cpu.stack_push(return_addr & 0xff);
+          cpu.stack_push(return_addr >> 8);
+          uint16_t call_addr = op[1] + (op[2] << 8);
+          cpu.next_pc = call_addr;
+          return 6;
+        } else {
+          return 3;
+        }
+      }
+      case 0xEC: // both illegal
+      case 0xFC:
+        illop(opcode);
+        return 0;
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0xd:
+      switch (opcode) {
+      case 0xCD: // Absolute call, unconditional. 6 cycles, flags
+                 // unmodified.
+      {
+        // CALL operations (conditional or unconditional) are all 3
+        // bytes long.
+        uint16_t op_size = 3;
+        uint16_t return_addr = cpu.pc + op_size;
+        // Low byte goes on stack first.
+        cpu.stack_push(return_addr & 0xff);
+        cpu.stack_push(return_addr >> 8);
+        uint16_t call_addr = op[1] + (op[2] << 8);
+        cpu.next_pc = call_addr;
+        return 6;
+      }
+      case 0xDD: // All 3 illegal
+      case 0xED:
+      case 0xFD:
+        illop(opcode);
+        return 0;
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0xe: // More 8-bit math. All 2 cycles, modifies all flags.
+      switch (opcode) {
+      case 0xCE: // ADC A,d8
+      {
+        int result = cpu.af.high + op[1] + !!(cpu.af.low & FLAG_C);
+        // We carried from bit 3 iff bit 4 of the result isn't the same
+        // as the XOR of bits 4 of the arguments
+        int carryH = (result & (1<<4)) !=
+          ((cpu.af.high & (1<<4)) ^ (op[1] & (1<<4)));
+        int carryC = !!(result & (1<<8));
+        cpu.af.high = result & 0xff;
+        cpu.updateFlags(!result, 0, carryH, carryC);
+        return 2;
+      }
+      case 0xDE: // SBC A,d8
+      {
+        uint8_t subtractend = ~(op[1]) + 1;
+        int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
+        int carryH = (result & (1<<4)) !=
+          ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
+        int carryC = !!(result & (1<<8));
+        cpu.af.high = result & 0xff;
+        cpu.updateFlags(!result, 1, carryH, carryC);
+        return 2;
+      }
+      case 0xEE: // XOR d8
+      {
+        uint8_t result = cpu.af.high ^ op[1];
+        cpu.af.high = result;
+        cpu.updateFlags(!result, 0, 0, 0);
+        return 2;
+      }
+      case 0xFE: // CP d8
+      {
+        // Same as SUB, but don't change A
+        uint8_t subtractend = ~(op[1]) + 1;
+        int result = cpu.af.high + subtractend;
+        int carryH = (result & (1<<4)) !=
+          ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
+        int carryC = !!(result & (1<<8));
+        cpu.updateFlags(!result, 1, carryH, carryC);
+        return 2;
+      }
+      default:
+        throw std::logic_error("Bad opcode bits");
+      }
+      break;
+    case 0xf: // RST: address onto stack, jump to fixed address. 4
+              // cycles, flags unmodified.
+    {
+      // AFAICT, this should push the address of the /next/
+      // instruction. Documentation is unclear.
+      uint16_t op_size = 3;
+      uint16_t return_addr = cpu.pc + op_size;
+      // Low byte goes on stack first.
+      cpu.stack_push(return_addr & 0xff);
+      cpu.stack_push(return_addr >> 8);
+
+      uint16_t call_addr = 8 + (opcode & 0x30);
+      cpu.next_pc = call_addr;
+
+      return 4;
+    }
+    default:
+      throw std::logic_error("Bad opcode low bits");
+    }
+    throw std::logic_error("Exited switch statement"); // unreachable
 
   default:
     throw std::logic_error("Bad opcode high bits");
   }
 
+}
+
+inline void cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
+  fprintf(stderr, "Unimplemented operation cb%02x\n", cb_op);
+  exit(0);
 }
