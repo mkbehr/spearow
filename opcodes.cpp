@@ -107,6 +107,31 @@ uint8_t *reg_16_deref_and_modify(CPU &cpu, int n) {
   return cpu.mem_ptr(addr);
 }
 
+// Get address of register or memory in this order:
+// B, C, D, E, H, L, (HL), A
+uint8_t *cb_arg(CPU &cpu, int n) {
+  switch (n) {
+  case 0:
+    return &cpu.bc.high;
+  case 1:
+    return &cpu.bc.low;
+  case 2:
+    return &cpu.de.high;
+  case 3:
+    return &cpu.de.low;
+  case 4:
+    return &cpu.hl.high;
+  case 5:
+    return &cpu.hl.low;
+  case 6:
+    return cpu.mem_ptr(cpu.hl.full);
+  case 7:
+    return &cpu.af.high;
+  default:
+    throw std::logic_error("Bad opcode argument bits");
+  }
+}
+
 int operate(CPU &cpu, uint8_t *op) {
 
   // Execute an opcode. Returns the number of machine cycles it took
@@ -1143,9 +1168,109 @@ int operate(CPU &cpu, uint8_t *op) {
     throw std::logic_error("Bad opcode high bits");
   }
 
+  throw std::logic_error("Exited switch statement"); // unreachable
 }
 
 inline void cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
-  fprintf(stderr, "Unimplemented operation cb%02x\n", cb_op);
-  exit(0);
+  uint8_t *arg = cb_arg(cpu, (cb_op & 7));
+  switch (cb_op & 0xC0) {
+  case 0x00:
+    switch ((cb_op >> 3) & 7) {
+    case 0: // RLC
+    {
+      unsigned int rotated = *arg << 1;
+      *arg = (rotated & 0xff) + (rotated >> 8); // rotate high bit to low bit
+      // Looks like this behaves differently from RLCA, in that it
+      // sets the Z flag according to the result.
+      // TODO: confirm.
+      cpu.updateFlags(!rotated, 0, 0, rotated >> 8);
+      return;
+    }
+    case 1: // RRC
+    {
+      unsigned int rotated = *arg >> 1;
+      int flagZ = !(*arg);
+      int flagC = (*arg & 1);
+      *arg = rotated + (flagC << 7);
+      cpu.updateFlags(flagZ, 0, 0, flagC);
+      return;
+    }
+    case 2: // RL
+    {
+      unsigned int rotated = *arg << 1;
+      *arg = (rotated & 0xff) + !!(cpu.af.low & FLAG_C); // rotate carry flag to low bit
+      cpu.updateFlags(!rotated, 0, 0, rotated >> 8);
+      return;
+    }
+    case 3: // RR
+    {
+      unsigned int rotated = *arg >> 1;
+      int flagZ = !(*arg);
+      int flagC = (*arg & 1);
+      *arg = rotated + (!!(cpu.af.low & FLAG_C) << 7);
+      cpu.updateFlags(flagZ, 0, 0, flagC);
+      return;
+    }
+    case 4: // SLA (shift left into carry)
+    {
+      unsigned int rotated = *arg << 1;
+      *arg = (rotated & 0xff); // low bit is 0
+      cpu.updateFlags(!(rotated & 0xff), 0, 0, rotated >> 8);
+      return;
+    }
+
+    case 5: // SRA (shift right into carry, high bit stays same)
+    {
+      unsigned int rotated = *arg >> 1;
+      int flagZ = !(*arg);
+      int flagC = (*arg & 1);
+      *arg = rotated + ((rotated << 1) & 0x80); // high bit stays the same
+      cpu.updateFlags(flagZ, 0, 0, flagC);
+      return;
+    }
+    case 6: // SWAP (upper and lower nibbles)
+    {
+      uint8_t result = (*arg >> 4) + (*arg << 4);
+      *arg = result;
+      cpu.updateFlags(!result, 0, 0, 0);
+      return;
+    }
+    case 7: // SRL (shift right into carry, high bit cleared)
+    {
+      unsigned int rotated = *arg >> 1;
+      int flagZ = !(*arg);
+      int flagC = (*arg & 1);
+      *arg = rotated;
+      cpu.updateFlags(flagZ, 0, 0, flagC);
+      return;
+    }
+    default:
+      throw std::logic_error("Bad opcode bits");
+    }
+    break;
+  case 0x40: // BIT
+  {
+    uint8_t bit = (cb_op >> 3) & 7;
+    int flagZ = !(*arg & (1 << bit));
+    cpu.updateFlags(flagZ, 0, 1, -1);
+    return;
+  }
+    break;
+  case 0x80: // RES
+  {
+    uint8_t bit = (cb_op >> 3) & 7;
+    *arg = *arg & ~((uint8_t) (1 << bit));
+    return;
+  }
+  case 0xC0: // SET
+  {
+    uint8_t bit = (cb_op >> 3) & 7;
+    *arg = *arg | (1 << bit);
+    return;
+  }
+    break;
+  default:
+    throw std::logic_error("Bad opcode bits");
+  }
+  throw std::logic_error("Exited switch statement"); // unreachable
 }
