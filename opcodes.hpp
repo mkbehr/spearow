@@ -111,4 +111,6 @@ extern const int OPCODE_LENGTHS[256];
 
 extern const char *OPCODE_NAMES[256];
 
+extern const char *CB_OPCODE_NAMES[256];
+
 #endif

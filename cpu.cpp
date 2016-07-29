@@ -162,7 +162,10 @@ void CPU::printState() {
          (af.low & FLAG_H) ? 'H' : '-',
          (af.low & FLAG_C) ? 'C' : '-');
   uint8_t op_first = *mem_ptr(pc);
-  printf("%04x: %s: %02x", pc, OPCODE_NAMES[op_first], op_first);
+  const char *opcode_name = op_first == 0xcb ?
+    CB_OPCODE_NAMES[*mem_ptr(pc+1)] :
+    OPCODE_NAMES[op_first];
+  printf("%04x: %s: %02x", pc, opcode_name, op_first);
   for (int i = 0; i < OPCODE_LENGTHS[op_first] - 1; i++) {
     uint8_t arg = *mem_ptr(pc+i+1);
     printf(" %02x", arg);
