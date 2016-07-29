@@ -3,6 +3,7 @@
 #define CPU_H
 
 #include <cstdint>
+#include <vector>
 
 #ifndef __BYTE_ORDER__
 #error Unknown byte order. Set __BYTE_ORDER__ to the appropriate value.
@@ -40,6 +41,10 @@ const uint16_t RAM_ECHO_TOP = 0xfdff;
 
 const unsigned int HIGH_RAM_SIZE = 0x80;
 const uint16_t HIGH_RAM_BASE = 0xff80;
+
+const uint16_t ROM_BASE = 0;
+const uint16_t ROM_SWITCHABLE_BASE = 0x4000;
+const uint16_t ROM_BANK_SIZE = 0x4000;
 
 // TODO the value of A after the logo startup sequence should depend
 // on gameboy type: gameboy and super gameboy are 0x01, gameboy pocket
@@ -90,6 +95,12 @@ class CPU {
 public:
   CPU();
 
+  void printState();
+
+  void tick();
+
+  void loadRom(const char *);
+
   void updateFlags(int z, int n, int h, int c);
 
   register_pair af;
@@ -114,6 +125,8 @@ public:
 
   void disableInterrupts(); // TODO
   void enableInterrupts(); // TODO
+
+  std::vector<uint8_t> rom;
 
 private:
   void postLogoSetup();
