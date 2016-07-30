@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "cpu.hpp"
+#include "mem.hpp"
 #include "opcodes.hpp"
 
 CPU::CPU()
@@ -51,12 +52,9 @@ void CPU::loadRom(const char *filepath) {
 }
 
 void CPU::tick() {
-  uint8_t op_first = *mem_ptr(pc);
+  uint8_t op_first = gb_mem_ptr(*this, pc).read();
   next_pc = pc + OPCODE_LENGTHS[op_first];
-  // Note: passing a pointer here is iffy, because we might cross the
-  // memory bank boundary. Replacing mem_ptr with read/write functions
-  // will fix that.
-  int cyclesElapsed = operate(*this, mem_ptr(pc));
+  int cyclesElapsed = operate(*this, gb_mem_ptr(*this, pc));
   // The operation will change next_pc if necessary.
   pc = next_pc;
 }
@@ -123,14 +121,14 @@ uint8_t *CPU::mem_ptr(uint16_t addr) {
 }
 
 uint8_t CPU::stack_pop() {
-  uint8_t out = *mem_ptr(sp);
+  uint8_t out = gb_mem_ptr(*this, sp).read();
   sp++;
   return out;
 }
 
 void CPU::stack_push(uint8_t x) {
   sp--;
-  *mem_ptr(sp) = x;
+  gb_mem_ptr(*this, sp).write(x);
 }
 
 
@@ -161,13 +159,13 @@ void CPU::printState() {
          (af.low & FLAG_N) ? 'N' : '-',
          (af.low & FLAG_H) ? 'H' : '-',
          (af.low & FLAG_C) ? 'C' : '-');
-  uint8_t op_first = *mem_ptr(pc);
+  uint8_t op_first = gb_mem_ptr(*this, pc).read();
   const char *opcode_name = op_first == 0xcb ?
-    CB_OPCODE_NAMES[*mem_ptr(pc+1)] :
+    CB_OPCODE_NAMES[gb_mem_ptr(*this, pc+1).read()] :
     OPCODE_NAMES[op_first];
   printf("%04x: %s: %02x", pc, opcode_name, op_first);
   for (int i = 0; i < OPCODE_LENGTHS[op_first] - 1; i++) {
-    uint8_t arg = *mem_ptr(pc+i+1);
+    uint8_t arg = gb_mem_ptr(*this, pc+i+1).read();
     printf(" %02x", arg);
   }
   printf("\n");

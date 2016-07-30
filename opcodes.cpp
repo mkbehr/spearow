@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "cpu.hpp"
+#include "mem.hpp"
 #include "opcodes.hpp"
 
 const int OPCODE_LENGTHS[256] = {
@@ -153,41 +154,41 @@ void unimp(uint8_t opcode) {
   exit(0);
 }
 
-// Get address of 8-bit registers or memory locations in this order:
+// Get pointer to 8-bit registers or memory locations in this order:
 // B, D, H, (HL)
-uint8_t *reg_8_high_or_indirect(CPU &cpu, int n) {
+gb_ptr reg_8_high_or_indirect(CPU &cpu, int n) {
   switch (n) {
   case 0:
-    return &cpu.bc.high;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.bc.high);
   case 1:
-    return &cpu.de.high;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.de.high);
   case 2:
-    return &cpu.hl.high;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.hl.high);
   case 3:
-    return cpu.mem_ptr(cpu.hl.full);
+    return gb_mem_ptr(cpu, cpu.hl.full);
   default:
     throw std::logic_error("Bad opcode argument bits");
   }
 }
 
-// Get address of 8-bit registers in this order:
+// Get pointer to 8-bit registers in this order:
 // C, E, L, A
-uint8_t *reg_8_low(CPU &cpu, int n) {
+gb_ptr reg_8_low(CPU &cpu, int n) {
   switch (n) {
   case 0:
-    return &cpu.bc.low;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.bc.low);
   case 1:
-    return &cpu.de.low;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.de.low);
   case 2:
-    return &cpu.hl.low;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.hl.low);
   case 3:
-    return &cpu.af.high;
+    return gb_ptr(cpu, GB_PTR_REG_8, &cpu.af.high);
   default:
     throw std::logic_error("Bad opcode argument bits");
   }
 }
 
-// Get address of the nth 16-bit register, in order of: BC, DE, HL, SP
+// Get pointer to the nth 16-bit register, in order of: BC, DE, HL, SP
 uint16_t *reg_16_or_sp(CPU &cpu, int n) {
   switch (n) {
   case 0:
@@ -269,12 +270,12 @@ uint8_t *cb_arg(CPU &cpu, int n) {
   }
 }
 
-int operate(CPU &cpu, uint8_t *op) {
+int operate(CPU &cpu, gb_ptr op) {
 
   // Execute an opcode. Returns the number of machine cycles it took
   // (1 machine cycle = 4 clock cycles)
 
-  uint8_t opcode = *op;
+  uint8_t opcode = op.read();
 
   int cycles;
 
@@ -297,7 +298,7 @@ int operate(CPU &cpu, uint8_t *op) {
           return 2;
         } else {
           // JR interprets its arg as a signed int.
-          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
           return 3;
         }
       case 0x30: // 30: JR NC,r8. 3 cycles if we jump, 2 otherwise.
@@ -305,7 +306,7 @@ int operate(CPU &cpu, uint8_t *op) {
         if (cpu.af.low & FLAG_C) {
           return 2;
         } else {
-          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
           return 3;
         }
       default:
@@ -316,7 +317,7 @@ int operate(CPU &cpu, uint8_t *op) {
     {
       uint16_t *arg = reg_16_or_sp(cpu, (opcode >> 4) & 0x3);
       // Z80 (and therefore gameboy is little-endian)
-      *arg = op[1] + (op[2] << 8);
+      *arg = (op+1).read() + ((op+2).read() << 8);
       return 3;
     }
     case 2: // 02, 12, 22, 32: 8-bit LD from register A to indirect
@@ -358,7 +359,7 @@ int operate(CPU &cpu, uint8_t *op) {
             // unmodified.
     {
       uint8_t *dst = reg_8_high_or_indirect(cpu, (opcode >> 4) & 0x3);
-      *dst = op[1];
+      *dst = (op+1).read();
       return (opcode == 0x36) ? 2 : 3;
     }
     case 7:
@@ -415,7 +416,7 @@ int operate(CPU &cpu, uint8_t *op) {
       case 0x08: // 08: 16-bit load from SP to indirect. 5 cycles,
                  // flags unmodified.
       {
-        uint16_t addr_low = op[1] + (op[2] << 8);
+        uint16_t addr_low = (op+1).read() + ((op+2).read() << 8);
         uint16_t addr_high = addr_low + 1;
         *cpu.mem_ptr(addr_low) = cpu.sp & 0xff;
         *cpu.mem_ptr(addr_high) = cpu.sp >> 8;
@@ -424,19 +425,19 @@ int operate(CPU &cpu, uint8_t *op) {
       case 0x18: // 18: unconditional relative jump. 3 cycles, flags
                  // unmodified.
       {
-        cpu.next_pc = cpu.pc + (int8_t) op[1];
+        cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
         return 3;
       }
       case 0x28: // 28: JR Z
         if (cpu.af.low & FLAG_Z) {
-          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
           return 3;
         } else {
           return 2;
         }
       case 0x38: // 38: JR C
         if (cpu.af.low & FLAG_C) {
-          cpu.next_pc = cpu.pc + (int8_t) op[1];
+          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
           return 3;
         } else {
           return 2;
@@ -497,7 +498,7 @@ int operate(CPU &cpu, uint8_t *op) {
               // 2 cycles. Flags unmodified.
     {
       uint8_t *dst = reg_8_low(cpu, (opcode >> 4) & 0x3);
-      *dst = op[1];
+      *dst = (op+1).read();
       return 2;
     }
     case 0xf:
@@ -799,14 +800,14 @@ int operate(CPU &cpu, uint8_t *op) {
       case 0xE0: // E0: LDH (a8), A. Writes contents of A to 0xff00
                  // plus argument. 3 cycles, flags unmodified.
       {
-        uint16_t addr = 0xff00 + op[1];
+        uint16_t addr = 0xff00 + (op+1).read();
         *cpu.mem_ptr(addr) = cpu.af.high;
         return 3;
       }
       case 0xF0: // F0: LDH A,(a8). Reads contents of 0xff00 plus
                  // argument into A. 3 cycles, flags unmodified.
       {
-        uint16_t addr = 0xff00 + op[1];
+        uint16_t addr = 0xff00 + (op+1).read();
         cpu.af.high = *cpu.mem_ptr(addr);
         return 3;
       }
@@ -832,7 +833,7 @@ int operate(CPU &cpu, uint8_t *op) {
           return 3;
         } else {
           // Low byte first.
-          cpu.next_pc = op[1] + (op[2] << 8);
+          cpu.next_pc = (op+1).read() + ((op+2).read() << 8);
           return 4;
         }
       }
@@ -842,7 +843,7 @@ int operate(CPU &cpu, uint8_t *op) {
           return 3;
         } else {
           // Low byte first.
-          cpu.next_pc = op[1] + (op[2] << 8);
+          cpu.next_pc = (op+1).read() + ((op+2).read() << 8);
           return 4;
         }
       }
@@ -866,7 +867,7 @@ int operate(CPU &cpu, uint8_t *op) {
       switch (opcode) {
       case 0xC3: // Unconditional absolute jump. 4 cycles.
       {
-        cpu.next_pc = op[1] + (op[2] << 8);
+        cpu.next_pc = (op+1).read() + ((op+2).read() << 8);
         return 4;
       }
       case 0xD3: // both illegal
@@ -897,7 +898,7 @@ int operate(CPU &cpu, uint8_t *op) {
           // Low byte goes on stack first.
           cpu.stack_push(return_addr & 0xff);
           cpu.stack_push(return_addr >> 8);
-          uint16_t call_addr = op[1] + (op[2] << 8);
+          uint16_t call_addr = (op+1).read() + ((op+2).read() << 8);
           cpu.next_pc = call_addr;
           return 6;
         }
@@ -915,7 +916,7 @@ int operate(CPU &cpu, uint8_t *op) {
           // Low byte goes on stack first.
           cpu.stack_push(return_addr & 0xff);
           cpu.stack_push(return_addr >> 8);
-          uint16_t call_addr = op[1] + (op[2] << 8);
+          uint16_t call_addr = (op+1).read() + ((op+2).read() << 8);
           cpu.next_pc = call_addr;
           return 6;
         }
@@ -941,11 +942,11 @@ int operate(CPU &cpu, uint8_t *op) {
       switch (opcode) {
       case 0xC6: // ADD A,d8
       {
-        int result = cpu.af.high + op[1];
+        int result = cpu.af.high + (op+1).read();
         // We carried from bit 3 iff bit 4 of the result isn't the same
         // as the XOR of bits 4 of the arguments
         int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ (op[1] & (1<<4)));
+          ((cpu.af.high & (1<<4)) ^ ((op+1).read() & (1<<4)));
         int carryC = !!(result & (1<<8));
         cpu.af.high = result & 0xff;
         cpu.updateFlags(!result, 0, carryH, carryC);
@@ -953,7 +954,7 @@ int operate(CPU &cpu, uint8_t *op) {
       }
       case 0xD6: // SUB d8
       {
-        uint8_t subtractend = ~(op[1]) + 1;
+        uint8_t subtractend = ~((op+1).read()) + 1;
         int result = cpu.af.high + subtractend;
         int carryH = (result & (1<<4)) !=
           ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
@@ -964,14 +965,14 @@ int operate(CPU &cpu, uint8_t *op) {
       }
       case 0xE6: // AND d8
       {
-        uint8_t result = cpu.af.high & op[1];
+        uint8_t result = cpu.af.high & (op+1).read();
         cpu.af.high = result;
         cpu.updateFlags(!result, 0, 1, 0);
         return 2;
       }
       case 0xF6: // OR d8
       {
-        uint8_t result = cpu.af.high | op[1];
+        uint8_t result = cpu.af.high | (op+1).read();
         cpu.af.high = result;
         cpu.updateFlags(!result, 0, 1, 0);
         return 2;
@@ -1031,7 +1032,7 @@ int operate(CPU &cpu, uint8_t *op) {
       case 0xE8: // 16-bit add of 8-bit literal to stack pointer. 4
                  // cycles. Note that flag Z is always unset.
       {
-        int8_t arg = (int8_t) op[1];
+        int8_t arg = (int8_t) (op+1).read();
         int result = cpu.sp + arg;
         // For 16-bit arithmetic, carry flags pay attention to the high
         // byte.
@@ -1046,7 +1047,7 @@ int operate(CPU &cpu, uint8_t *op) {
                  // cycles. Flags set according to the addition, as in
                  // op E8 (I think).
       {
-        int8_t arg = (int8_t) op[1];
+        int8_t arg = (int8_t) (op+1).read();
         int result = cpu.sp + arg;
         // For 16-bit arithmetic, carry flags pay attention to the high
         // byte.
@@ -1108,7 +1109,7 @@ int operate(CPU &cpu, uint8_t *op) {
       {
         if (cpu.af.low & FLAG_Z) {
           // Low byte first.
-          cpu.next_pc = op[1] + (op[2] << 8);
+          cpu.next_pc = (op+1).read() + ((op+2).read() << 8);
           return 4;
         } else {
           return 3;
@@ -1118,7 +1119,7 @@ int operate(CPU &cpu, uint8_t *op) {
       {
         if (cpu.af.low & FLAG_C) {
           // Low byte first.
-          cpu.next_pc = op[1] + (op[2] << 8);
+          cpu.next_pc = (op+1).read() + ((op+2).read() << 8);
           return 4;
         } else {
           return 3;
@@ -1126,13 +1127,13 @@ int operate(CPU &cpu, uint8_t *op) {
       }
       case 0xEA: // Write A to provided address. 4 cycles, flags unmodified.
       {
-        uint16_t addr = op[1] + (op[2] << 8);
+        uint16_t addr = (op+1).read() + ((op+2).read() << 8);
         *cpu.mem_ptr(addr) = cpu.af.high;
         return 4;
       }
       case 0xFA: // Read provided address to A. 4 cycles, flags unmodified.
       {
-        uint16_t addr = op[1] + (op[2] << 8);
+        uint16_t addr = (op+1).read() + ((op+2).read() << 8);
         cpu.af.high = *cpu.mem_ptr(addr);
         return 4;
       }
@@ -1145,7 +1146,7 @@ int operate(CPU &cpu, uint8_t *op) {
       case 0xCB: // Various math functions. Some modify some flags.
                  // All 2 cycles.
       {
-        cb_prefix_operate(cpu, op[1]);
+        cb_prefix_operate(cpu, (op+1).read());
         return 2;
       }
       case 0xDB: // both illegal
@@ -1175,7 +1176,7 @@ int operate(CPU &cpu, uint8_t *op) {
           // Low byte goes on stack first.
           cpu.stack_push(return_addr & 0xff);
           cpu.stack_push(return_addr >> 8);
-          uint16_t call_addr = op[1] + (op[2] << 8);
+          uint16_t call_addr = (op+1).read() + ((op+2).read() << 8);
           cpu.next_pc = call_addr;
           return 6;
         } else {
@@ -1193,7 +1194,7 @@ int operate(CPU &cpu, uint8_t *op) {
           // Low byte goes on stack first.
           cpu.stack_push(return_addr & 0xff);
           cpu.stack_push(return_addr >> 8);
-          uint16_t call_addr = op[1] + (op[2] << 8);
+          uint16_t call_addr = (op+1).read() + ((op+2).read() << 8);
           cpu.next_pc = call_addr;
           return 6;
         } else {
@@ -1220,7 +1221,7 @@ int operate(CPU &cpu, uint8_t *op) {
         // Low byte goes on stack first.
         cpu.stack_push(return_addr & 0xff);
         cpu.stack_push(return_addr >> 8);
-        uint16_t call_addr = op[1] + (op[2] << 8);
+        uint16_t call_addr = (op+1).read() + ((op+2).read() << 8);
         cpu.next_pc = call_addr;
         return 6;
       }
@@ -1237,11 +1238,11 @@ int operate(CPU &cpu, uint8_t *op) {
       switch (opcode) {
       case 0xCE: // ADC A,d8
       {
-        int result = cpu.af.high + op[1] + !!(cpu.af.low & FLAG_C);
+        int result = cpu.af.high + (op+1).read() + !!(cpu.af.low & FLAG_C);
         // We carried from bit 3 iff bit 4 of the result isn't the same
         // as the XOR of bits 4 of the arguments
         int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ (op[1] & (1<<4)));
+          ((cpu.af.high & (1<<4)) ^ ((op+1).read() & (1<<4)));
         int carryC = !!(result & (1<<8));
         cpu.af.high = result & 0xff;
         cpu.updateFlags(!result, 0, carryH, carryC);
@@ -1249,7 +1250,7 @@ int operate(CPU &cpu, uint8_t *op) {
       }
       case 0xDE: // SBC A,d8
       {
-        uint8_t subtractend = ~(op[1]) + 1;
+        uint8_t subtractend = ~((op+1).read()) + 1;
         int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
         int carryH = (result & (1<<4)) !=
           ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
@@ -1260,7 +1261,7 @@ int operate(CPU &cpu, uint8_t *op) {
       }
       case 0xEE: // XOR d8
       {
-        uint8_t result = cpu.af.high ^ op[1];
+        uint8_t result = cpu.af.high ^ (op+1).read();
         cpu.af.high = result;
         cpu.updateFlags(!result, 0, 0, 0);
         return 2;
@@ -1268,7 +1269,7 @@ int operate(CPU &cpu, uint8_t *op) {
       case 0xFE: // CP d8
       {
         // Same as SUB, but don't change A
-        uint8_t subtractend = ~(op[1]) + 1;
+        uint8_t subtractend = ~((op+1).read()) + 1;
         int result = cpu.af.high + subtractend;
         int carryH = (result & (1<<4)) !=
           ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
