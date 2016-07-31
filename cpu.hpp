@@ -115,8 +115,6 @@ public:
   uint8_t ram[RAM_SIZE];
   uint8_t highRam[HIGH_RAM_SIZE];
 
-  uint8_t *mem_ptr(uint16_t addr);
-
   uint8_t stack_pop();
   void stack_push(uint8_t x);
 

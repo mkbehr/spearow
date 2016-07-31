@@ -84,42 +84,6 @@ void CPU::updateFlags(int z, int n, int h, int c) {
   af.low = flags;
 }
 
-// TODO: this should really be implemented as read/write functions
-// instead of just a pointer
-uint8_t *CPU::mem_ptr(uint16_t addr) {
-
-  // TODO: respect switchable ROM bank
-  if ((ROM_BASE <= addr) &&
-      (addr < ROM_SWITCHABLE_BASE + ROM_BANK_SIZE)) {
-
-    return &rom.at(addr - ROM_BASE);
-  }
-
-  // TODO: respect switchable RAM bank
-  if ((RAM_BASE <= addr) &&
-      (addr < RAM_BASE + RAM_SIZE)) {
-    return &(ram[addr - RAM_BASE]);
-  }
-
-  if ((RAM_ECHO_BASE <= addr) &&
-      (addr <= RAM_ECHO_TOP)) {
-    return &(ram[addr - RAM_ECHO_BASE]);
-  }
-
-  if (HIGH_RAM_BASE <= addr) {
-    // Test addr against edge of high ram with a static assert to
-    // avoid -Wtautological-constant-out-of-range-compare complaining
-    static_assert(
-      std::numeric_limits< decltype(addr) >::max()
-      < (int) HIGH_RAM_BASE + (int) HIGH_RAM_SIZE,
-      "High ram should occupy the top of memory");
-    return &(highRam[addr - HIGH_RAM_BASE]);
-  }
-
-  fprintf(stderr, "Access to unimplemented address %04x\n", addr);
-  exit(0);
-}
-
 uint8_t CPU::stack_pop() {
   uint8_t out = gb_mem_ptr(*this, sp).read();
   sp++;
