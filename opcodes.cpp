@@ -587,11 +587,11 @@ int operate(CPU &cpu, gb_ptr op) {
 
     int cycles = 1;
 
-    gb_ptr arg = reg_8_all_or_indirect(cpu, (opcode>>3) & 0x7, cycles);
+    // Bits 5 through 7 determine argument
+    gb_ptr arg = reg_8_all_or_indirect(cpu, opcode & 0x7, cycles);
 
-    // Bits 5 through 7 determine operation
-
-    switch (opcode & 0x7) {
+    // Bits 2 through 4 determine operation
+    switch ((opcode>>3) & 0x7) {
     case 0: // ADD A,arg
     {
       int result = cpu.af.high + arg.read();
