@@ -60,6 +60,11 @@ uint8_t gb_ptr::read() {
   }
 }
 
+uint16_t gb_ptr::read_16() {
+  assert(ptr_type == GB_PTR_MEM);
+  return gb_mem16_ptr(cpu, val.addr).read();
+}
+
 void gb_ptr::write(uint8_t to_write) {
 
   switch(ptr_type) {
@@ -68,22 +73,17 @@ void gb_ptr::write(uint8_t to_write) {
   {
     const uint16_t addr = val.addr;
 
-    // TODO: respect switchable ROM bank
-    if ((ROM_BASE <= addr) &&
-        (addr < ROM_SWITCHABLE_BASE + ROM_BANK_SIZE)) {
-
-      cpu.rom.at(addr - ROM_BASE) = to_write;
-    }
-
     // TODO: respect switchable RAM bank
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
       cpu.ram[addr - RAM_BASE] = to_write;
+      return;
     }
 
     if ((RAM_ECHO_BASE <= addr) &&
         (addr <= RAM_ECHO_TOP)) {
       cpu.ram[addr - RAM_ECHO_BASE] = to_write;
+      return;
     }
 
     if (HIGH_RAM_BASE <= addr) {
@@ -94,6 +94,7 @@ void gb_ptr::write(uint8_t to_write) {
         < (int) HIGH_RAM_BASE + (int) HIGH_RAM_SIZE,
         "High ram should occupy the top of memory");
       cpu.highRam[addr - HIGH_RAM_BASE] = to_write;
+      return;
     }
 
     fprintf(stderr, "Write to unimplemented address %04x\n", addr);
@@ -102,11 +103,17 @@ void gb_ptr::write(uint8_t to_write) {
   case GB_PTR_REG:
   {
     *(val.reg) = to_write;
+    return;
   }
   default:
     fprintf(stderr, "gb_ptr::write(): bad ptr_type %d\n", ptr_type);
     exit(0);
   }
+}
+
+void gb_ptr::write_16(uint16_t to_write) {
+  assert(ptr_type == GB_PTR_MEM);
+  gb_mem16_ptr(cpu, val.addr).write(to_write);
 }
 
 gb_ptr gb_ptr::operator+(int i) const {
@@ -123,6 +130,10 @@ gb_ptr gb_ptr::operator-(int i) const {
 
 gb_ptr gb_mem_ptr(CPU &c, uint16_t addr) {
   return gb_ptr(c, GB_PTR_MEM, {.addr=addr});
+}
+
+gb_ptr gb_reg_ptr(CPU &c, uint8_t *reg) {
+  return gb_ptr(c, GB_PTR_REG, {.reg=reg});
 }
 
 // END GB_PTR
@@ -172,10 +183,12 @@ void gb_ptr_16::write(uint8_t to_write) {
     gb_ptr(cpu, GB_PTR_MEM,
            {.addr = static_cast<uint16_t>(addr+1)}
       ).write(in_high);
+    return;
   }
   case GB_PTR_REG:
   {
     *(val.reg) = to_write;
+    return;
   }
   default:
     fprintf(stderr, "gb_ptr_16::write(): bad ptr_type %d\n", ptr_type);
@@ -197,6 +210,10 @@ gb_ptr_16 gb_ptr_16::operator-(int i) const {
 
 gb_ptr_16 gb_mem16_ptr(CPU &c, uint16_t addr) {
   return gb_ptr_16(c, GB_PTR_MEM, {.addr=addr});
+}
+
+gb_ptr_16 gb_reg16_ptr(CPU &c, uint16_t *reg) {
+  return gb_ptr_16(c, GB_PTR_REG, {.reg=reg});
 }
 
 // END GB_PTR_16

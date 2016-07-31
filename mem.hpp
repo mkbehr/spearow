@@ -19,7 +19,9 @@ class gb_ptr {
 public:
   gb_ptr(CPU &, const gb_ptr_type, const gb_ptr_val);
   uint8_t read();
+  uint16_t read_16();
   void write(uint8_t);
+  void write_16(uint16_t);
   gb_ptr operator+(int) const;
   gb_ptr operator-(int) const;
 private:
@@ -49,6 +51,8 @@ private:
 };
 
 gb_ptr gb_mem_ptr(CPU &, uint16_t);
+gb_ptr gb_reg_ptr(CPU &, uint8_t *);
 gb_ptr_16 gb_mem16_ptr(CPU &, uint16_t);
+gb_ptr_16 gb_reg16_ptr(CPU &, uint16_t *);
 
 #endif // $ifndef MEM_H

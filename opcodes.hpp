@@ -107,7 +107,7 @@
 const unsigned char OPC_HALT = 0x76;
 
 int operate(CPU &cpu, gb_ptr op);
-inline void cb_prefix_operate(CPU &cpu, uint8_t cb_op);
+int cb_prefix_operate(CPU &cpu, uint8_t cb_op);
 
 extern const int OPCODE_LENGTHS[256];
 
