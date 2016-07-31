@@ -300,8 +300,10 @@ int operate(CPU &cpu, gb_ptr op) {
         if (cpu.af.low & FLAG_Z) {
           return 2;
         } else {
+          // JR operations are all 2 bytes long.
+          uint16_t op_size = 2;
           // JR interprets its arg as a signed int.
-          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
+          cpu.next_pc = cpu.pc + op_size + (int8_t) (op+1).read();
           return 3;
         }
       case 0x30: // 30: JR NC,r8. 3 cycles if we jump, 2 otherwise.
@@ -309,7 +311,8 @@ int operate(CPU &cpu, gb_ptr op) {
         if (cpu.af.low & FLAG_C) {
           return 2;
         } else {
-          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
+          uint16_t op_size = 2;
+          cpu.next_pc = cpu.pc + op_size + (int8_t) (op+1).read();
           return 3;
         }
       default:
@@ -424,22 +427,25 @@ int operate(CPU &cpu, gb_ptr op) {
         dst.write(cpu.sp);
         return 5;
       }
-      case 0x18: // 18: unconditional relative jump. 3 cycles, flags
+      case 0x18: // 18: unconditional JR. 3 cycles, flags
                  // unmodified.
       {
-        cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
+        uint16_t op_size = 2;
+        cpu.next_pc = cpu.pc + op_size + (int8_t) (op+1).read();
         return 3;
       }
       case 0x28: // 28: JR Z
         if (cpu.af.low & FLAG_Z) {
-          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
+          uint16_t op_size = 2;
+          cpu.next_pc = cpu.pc + op_size + (int8_t) (op+1).read();
           return 3;
         } else {
           return 2;
         }
       case 0x38: // 38: JR C
         if (cpu.af.low & FLAG_C) {
-          cpu.next_pc = cpu.pc + (int8_t) (op+1).read();
+          uint16_t op_size = 2;
+          cpu.next_pc = cpu.pc + op_size + (int8_t) (op+1).read();
           return 3;
         } else {
           return 2;
