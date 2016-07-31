@@ -170,7 +170,7 @@ uint16_t gb_ptr_16::read() {
   }
 }
 
-void gb_ptr_16::write(uint8_t to_write) {
+void gb_ptr_16::write(uint16_t to_write) {
 
   switch(ptr_type) {
 
