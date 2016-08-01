@@ -297,6 +297,28 @@ inline void op_ret(CPU &cpu) {
   }
 }
 
+inline uint8_t op_add(CPU &cpu, uint8_t arg) {
+  int result = cpu.af.high + arg;
+  // We carried from bit 3 iff bit 4 of the result isn't the same
+  // as the XOR of bits 4 of the arguments
+  int carryH = (result & (1<<4)) !=
+    ((cpu.af.high & (1<<4)) ^ (arg & (1<<4)));
+  int carryC = !!(result & (1<<8));
+  cpu.updateFlags(!(result & 0xff), 0, carryH, carryC);
+  return result & 0xff;
+}
+
+inline uint8_t op_adc(CPU &cpu, uint8_t arg) {
+  int result = cpu.af.high + arg + !!(cpu.af.low & FLAG_C);
+  // We carried from bit 3 iff bit 4 of the result isn't the same
+  // as the XOR of bits 4 of the arguments
+  int carryH = (result & (1<<4)) !=
+    ((cpu.af.high & (1<<4)) ^ (arg & (1<<4)));
+  int carryC = !!(result & (1<<8));
+  cpu.updateFlags(!(result & 0xff), 0, carryH, carryC);
+  return result & 0xff;
+}
+
 inline uint8_t op_cmp_or_sub8(CPU &cpu, uint8_t arg) {
   uint8_t subtractend = ~arg + 1;
   int result = cpu.af.high + subtractend;
@@ -640,26 +662,12 @@ int operate(CPU &cpu, gb_ptr op) {
     switch ((opcode>>3) & 0x7) {
     case 0: // ADD A,arg
     {
-      int result = cpu.af.high + arg.read();
-      // We carried from bit 3 iff bit 4 of the result isn't the same
-      // as the XOR of bits 4 of the arguments
-      int carryH = (result & (1<<4)) !=
-        ((cpu.af.high & (1<<4)) ^ (arg.read() & (1<<4)));
-      int carryC = !!(result & (1<<8));
-      cpu.af.high = result & 0xff;
-      cpu.updateFlags(!result, 0, carryH, carryC);
+      cpu.af.high = op_add(cpu, arg.read());
       break;
     }
     case 1: // ADC A,arg
     {
-      int result = cpu.af.high + arg.read() + !!(cpu.af.low & FLAG_C);
-      // We carried from bit 3 iff bit 4 of the result isn't the same
-      // as the XOR of bits 4 of the arguments
-      int carryH = (result & (1<<4)) !=
-        ((cpu.af.high & (1<<4)) ^ (arg.read() & (1<<4)));
-      int carryC = !!(result & (1<<8));
-      cpu.af.high = result & 0xff;
-      cpu.updateFlags(!result, 0, carryH, carryC);
+      cpu.af.high = op_adc(cpu, arg.read());
       break;
     }
     case 2: // SUB arg
@@ -863,19 +871,13 @@ int operate(CPU &cpu, gb_ptr op) {
       switch (opcode) {
       case 0xC6: // ADD A,d8
       {
-        int result = cpu.af.high + (op+1).read();
-        // We carried from bit 3 iff bit 4 of the result isn't the same
-        // as the XOR of bits 4 of the arguments
-        int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ ((op+1).read() & (1<<4)));
-        int carryC = !!(result & (1<<8));
-        cpu.af.high = result & 0xff;
-        cpu.updateFlags(!result, 0, carryH, carryC);
+        cpu.af.high = op_add(cpu, (op+1).read());
         return 2;
       }
       case 0xD6: // SUB d8
       {
         uint8_t result = op_cmp_or_sub8(cpu, (op+1).read());
+        cpu.af.high = result;
         return 2;
       }
       case 0xE6: // AND d8
