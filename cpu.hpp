@@ -118,6 +118,9 @@ public:
   uint8_t stack_pop();
   void stack_push(uint8_t x);
 
+  uint16_t stack_pop_16();
+  void stack_push_16(uint16_t x);
+
   void stop(); // TODO
   void halt(); // TODO
 

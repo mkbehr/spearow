@@ -84,6 +84,10 @@ void CPU::updateFlags(int z, int n, int h, int c) {
   af.low = flags;
 }
 
+// I implemented 8-bit pushes and pops, but they aren't actually used!
+// All PUSH and POP operations are 16-bit, and everything else that
+// interacts with the stack works in terms of 16-bit addresses.
+
 uint8_t CPU::stack_pop() {
   uint8_t out = gb_mem_ptr(*this, sp).read();
   sp++;
@@ -93,6 +97,36 @@ uint8_t CPU::stack_pop() {
 void CPU::stack_push(uint8_t x) {
   sp--;
   gb_mem_ptr(*this, sp).write(x);
+}
+
+/*
+  Intel 8080 programmer's manual has this to say about byte ordering
+  on the stack:
+
+  """
+  (1) The most significant 8 bits of data are stored at the memory
+  address one less than the contents of the stack pointer.
+
+  (2) The least significant 8 bits of data are stored at the memory
+  address two less than the contents of the stack pointer.
+
+  (3) The stack pointer is automatically decremented by two.
+  """
+
+  The gameboy's processor is related to the 8080, so I'm going to
+  assume the stack works the same way. It's also the more-convenient
+  way.
+ */
+
+uint16_t CPU::stack_pop_16() {
+  uint16_t out = gb_mem16_ptr(*this, sp).read();
+  sp += 2;
+  return out;
+}
+
+void CPU::stack_push_16(uint16_t x) {
+  sp -=2;
+  gb_mem16_ptr(*this, sp).write(x);
 }
 
 

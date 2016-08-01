@@ -275,6 +275,19 @@ gb_ptr reg_8_all_or_indirect(CPU &cpu, int n, int &did_indirect) {
   }
 }
 
+inline void op_call(CPU &cpu, uint16_t call_addr) {
+  // CALL operations (conditional or unconditional) are all 3
+  // bytes long.
+  uint16_t op_size = 3;
+  uint16_t return_addr = cpu.pc + op_size;
+  cpu.stack_push_16(return_addr);
+  cpu.next_pc = call_addr;
+}
+
+inline void op_ret(CPU &cpu) {
+  cpu.next_pc = cpu.stack_pop_16();
+}
+
 int operate(CPU &cpu, gb_ptr op) {
 
   // Execute an opcode. Returns the number of machine cycles it took
@@ -687,12 +700,7 @@ int operate(CPU &cpu, gb_ptr op) {
         if (cpu.af.low & FLAG_Z) {
           return 2;
         } else {
-          // High address byte will be on top of stack, low byte below
-          // it.
-          uint8_t addr_high = cpu.stack_pop();
-          uint8_t addr_low = cpu.stack_pop();
-          uint16_t addr = (addr_high << 8) + addr_low;
-          cpu.next_pc = addr;
+          op_ret(cpu);
           return 5;
         }
       }
@@ -702,12 +710,7 @@ int operate(CPU &cpu, gb_ptr op) {
         if (cpu.af.low & FLAG_C) {
           return 2;
         } else {
-          // High address byte will be on top of stack, low byte below
-          // it.
-          uint8_t addr_high = cpu.stack_pop();
-          uint8_t addr_low = cpu.stack_pop();
-          uint16_t addr = (addr_high << 8) + addr_low;
-          cpu.next_pc = addr;
+          op_ret(cpu);
           return 5;
         }
       }
@@ -735,9 +738,7 @@ int operate(CPU &cpu, gb_ptr op) {
               // Flags unmodified, unless of course we popped into AF.
               // 3 cycles.
     {
-      uint8_t val_high = cpu.stack_pop();
-      uint8_t val_low = cpu.stack_pop();
-      uint16_t val = (val_high << 8) + val_low;
+      uint16_t val = cpu.stack_pop_16();
       gb_ptr_16 ptr = reg_16_or_af(cpu, (opcode >> 4) & 0x3);
       ptr.write(val);
       return 3;
@@ -808,15 +809,8 @@ int operate(CPU &cpu, gb_ptr op) {
         if (cpu.af.low & FLAG_Z) {
           return 3;
         } else {
-          // CALL operations (conditional or unconditional) are all 3
-          // bytes long.
-          uint16_t op_size = 3;
-          uint16_t return_addr = cpu.pc + op_size;
-          // Low byte goes on stack first.
-          cpu.stack_push(return_addr & 0xff);
-          cpu.stack_push(return_addr >> 8);
           uint16_t call_addr = (op+1).read_16();
-          cpu.next_pc = call_addr;
+          op_call(cpu, call_addr);
           return 6;
         }
       }
@@ -826,15 +820,8 @@ int operate(CPU &cpu, gb_ptr op) {
         if (cpu.af.low & FLAG_Z) {
           return 3;
         } else {
-          // CALL operations (conditional or unconditional) are all 3
-          // bytes long.
-          uint16_t op_size = 3;
-          uint16_t return_addr = cpu.pc + op_size;
-          // Low byte goes on stack first.
-          cpu.stack_push(return_addr & 0xff);
-          cpu.stack_push(return_addr >> 8);
           uint16_t call_addr = (op+1).read_16();
-          cpu.next_pc = call_addr;
+          op_call(cpu, call_addr);
           return 6;
         }
       }
@@ -851,8 +838,7 @@ int operate(CPU &cpu, gb_ptr op) {
     {
       gb_ptr_16 ptr = reg_16_or_af(cpu, (opcode >> 4) & 0x3);
       uint16_t val = ptr.read();
-      cpu.stack_push(val & 0xff);
-      cpu.stack_push(val >> 8);
+      cpu.stack_push_16(val);
       return 4;
     }
     case 0x6: // Some 8-bit math we didn't get to earlier. Always 2
@@ -906,9 +892,7 @@ int operate(CPU &cpu, gb_ptr op) {
       // instruction. Documentation is unclear.
       uint16_t op_size = 3;
       uint16_t return_addr = cpu.pc + op_size;
-      // Low byte goes on stack first.
-      cpu.stack_push(return_addr & 0xff);
-      cpu.stack_push(return_addr >> 8);
+      cpu.stack_push_16(return_addr);
 
       uint16_t call_addr = 0 + (opcode & 0x30);
       cpu.next_pc = call_addr;
@@ -917,31 +901,21 @@ int operate(CPU &cpu, gb_ptr op) {
     }
     case 0x8:
       switch (opcode) {
-      case 0xC8: // Conditional return if Z flag set. 2 or 5 cycles,
+      case 0xC8: // Conditional RET if Z flag set. 2 or 5 cycles,
                  // flags unmodified.
       {
         if (cpu.af.low & FLAG_Z) {
-          // High address byte will be on top of stack, low byte below
-          // it.
-          uint8_t addr_high = cpu.stack_pop();
-          uint8_t addr_low = cpu.stack_pop();
-          uint16_t addr = (addr_high << 8) + addr_low;
-          cpu.next_pc = addr;
+          op_ret(cpu);
           return 5;
         } else {
           return 2;
         }
       }
-      case 0xD8: // Conditional return if C flag set. 2 or 5 cycles,
+      case 0xD8: // Conditional RET if C flag set. 2 or 5 cycles,
                  // flags unmodified.
       {
         if (cpu.af.low & FLAG_C) {
-          // High address byte will be on top of stack, low byte below
-          // it.
-          uint8_t addr_high = cpu.stack_pop();
-          uint8_t addr_low = cpu.stack_pop();
-          uint16_t addr = (addr_high << 8) + addr_low;
-          cpu.next_pc = addr;
+          op_ret(cpu);
           return 5;
         } else {
           return 2;
@@ -984,22 +958,14 @@ int operate(CPU &cpu, gb_ptr op) {
       switch (opcode) {
       case 0xC9: // RET: Unconditional return. 4 cycles.
       {
-        // High address byte will be on top of stack, low byte below
-        // it.
-        uint8_t addr_high = cpu.stack_pop();
-        uint8_t addr_low = cpu.stack_pop();
-        uint16_t addr = (addr_high << 8) + addr_low;
-        cpu.next_pc = addr;
+        op_ret(cpu);
         return 4;
       }
       case 0xD9: // RETI: Unconditional return and enable interrupts.
                  // Is the timing the same as the EI instruction?
                  // Unclear.
       {
-        uint8_t addr_high = cpu.stack_pop();
-        uint8_t addr_low = cpu.stack_pop();
-        uint16_t addr = (addr_high << 8) + addr_low;
-        cpu.next_pc = addr;
+        op_ret(cpu);
         cpu.enableInterrupts();
         return 4;
       }
@@ -1088,15 +1054,8 @@ int operate(CPU &cpu, gb_ptr op) {
                  // flags unmodified.
       {
         if (cpu.af.low & FLAG_Z) {
-          // CALL operations (conditional or unconditional) are all 3
-          // bytes long.
-          uint16_t op_size = 3;
-          uint16_t return_addr = cpu.pc + op_size;
-          // Low byte goes on stack first.
-          cpu.stack_push(return_addr & 0xff);
-          cpu.stack_push(return_addr >> 8);
           uint16_t call_addr = (op+1).read_16();
-          cpu.next_pc = call_addr;
+          op_call(cpu, call_addr);
           return 6;
         } else {
           return 3;
@@ -1106,15 +1065,8 @@ int operate(CPU &cpu, gb_ptr op) {
                  // flags unmodified.
       {
         if (cpu.af.low & FLAG_Z) {
-          // CALL operations (conditional or unconditional) are all 3
-          // bytes long.
-          uint16_t op_size = 3;
-          uint16_t return_addr = cpu.pc + op_size;
-          // Low byte goes on stack first.
-          cpu.stack_push(return_addr & 0xff);
-          cpu.stack_push(return_addr >> 8);
           uint16_t call_addr = (op+1).read_16();
-          cpu.next_pc = call_addr;
+          op_call(cpu, call_addr);
           return 6;
         } else {
           return 3;
@@ -1133,15 +1085,8 @@ int operate(CPU &cpu, gb_ptr op) {
       case 0xCD: // Absolute call, unconditional. 6 cycles, flags
                  // unmodified.
       {
-        // CALL operations (conditional or unconditional) are all 3
-        // bytes long.
-        uint16_t op_size = 3;
-        uint16_t return_addr = cpu.pc + op_size;
-        // Low byte goes on stack first.
-        cpu.stack_push(return_addr & 0xff);
-        cpu.stack_push(return_addr >> 8);
         uint16_t call_addr = (op+1).read_16();
-        cpu.next_pc = call_addr;
+        op_call(cpu, call_addr);
         return 6;
       }
       case 0xDD: // All 3 illegal
@@ -1207,9 +1152,7 @@ int operate(CPU &cpu, gb_ptr op) {
       // instruction. Documentation is unclear.
       uint16_t op_size = 3;
       uint16_t return_addr = cpu.pc + op_size;
-      // Low byte goes on stack first.
-      cpu.stack_push(return_addr & 0xff);
-      cpu.stack_push(return_addr >> 8);
+      cpu.stack_push_16(return_addr);
 
       uint16_t call_addr = 8 + (opcode & 0x30);
       cpu.next_pc = call_addr;
