@@ -76,10 +76,10 @@ void CPU::updateFlags(int z, int n, int h, int c) {
   } else if (h > 0) {
     flags |= FLAG_H;
   }
-  if (h == 0) {
-    flags &= ~FLAG_H;
-  } else if (z > 0) {
-    flags |= FLAG_H;
+  if (c == 0) {
+    flags &= ~FLAG_C;
+  } else if (c > 0) {
+    flags |= FLAG_C;
   }
   af.low = flags;
 }

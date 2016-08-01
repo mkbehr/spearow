@@ -320,22 +320,21 @@ inline uint8_t op_adc(CPU &cpu, uint8_t arg) {
 }
 
 inline uint8_t op_cmp_or_sub8(CPU &cpu, uint8_t arg) {
-  uint8_t subtractend = ~arg + 1;
-  int result = cpu.af.high + subtractend;
-  int carryH = (result & (1<<4)) !=
-    ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-  int carryC = !!(result & (1<<8));
-  cpu.updateFlags(!(result & 0xff), 1, carryH, carryC);
+  int result = cpu.af.high - arg;
+  int flagZ = (result == 0);
+  int flagH = ((cpu.af.high & 0xf) - (arg & 0xf) < 0);
+  int flagC = (result < 0);
+  cpu.updateFlags(flagZ, 1, flagH, flagC);
   return result & 0xff;
 }
 
 inline uint8_t op_sbc(CPU &cpu, uint8_t arg) {
-  uint8_t subtractend = ~arg + 1;
-  int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
-  int carryH = (result & (1<<4)) !=
-    ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-  int carryC = !!(result & (1<<8));
-  cpu.updateFlags(!(result & 0xff), 1, carryH, carryC);
+  int subtractend = arg + 1;
+  int result = cpu.af.high - subtractend;
+  int flagZ = (result == 0);
+  int flagH = ((cpu.af.high & 0xf) - (subtractend & 0xf) < 0);
+  int flagC = (result < 0);
+  cpu.updateFlags(flagZ, 1, flagH, flagC);
   return result & 0xff;
 }
 
