@@ -210,7 +210,9 @@ gb_ptr_16 reg_16_or_sp(CPU &cpu, int n) {
   }
 }
 
-// Get address of the nth 16-bit register, in order of: BC, DE, HL, AF
+// Get address of the nth 16-bit register, in order of: BC, DE, HL,
+// AF. NOTE: if we ever write to AF, we have to zero out the lower 4
+// bits. This doesn't handle that.
 gb_ptr_16 reg_16_or_af(CPU &cpu, int n) {
   switch (n) {
   case 0:
@@ -329,7 +331,7 @@ inline uint8_t op_cmp_or_sub8(CPU &cpu, uint8_t arg) {
 }
 
 inline uint8_t op_sbc(CPU &cpu, uint8_t arg) {
-  int subtractend = arg + 1;
+  int subtractend = arg + !!(cpu.af.high & FLAG_C);
   int result = cpu.af.high - subtractend;
   int flagZ = (result == 0);
   int flagH = ((cpu.af.high & 0xf) - (subtractend & 0xf) < 0);
@@ -477,8 +479,8 @@ int operate(CPU &cpu, gb_ptr op) {
         cpu.updateFlags(!cpu.af.high, -1, 0, newFlagC);
         return 1;
       }
-      case 0x37: // SCF. Sets carry flag. 1 cycle, other flags unmodified.
-        cpu.updateFlags(-1, -1, -1, 1);
+      case 0x37: // SCF. Sets carry flag. Unsets N and H flags, Z unmodified. 1 cycle.
+        cpu.updateFlags(-1, 0, 0, 1);
         return 1;
       default:
         throw std::logic_error("Bad opcode");
@@ -692,14 +694,14 @@ int operate(CPU &cpu, gb_ptr op) {
     {
       uint8_t result = cpu.af.high ^ arg.read();
       cpu.af.high = result;
-      cpu.updateFlags(!result, 0, 1, 0);
+      cpu.updateFlags(!result, 0, 0, 0);
       break;
     }
     case 6: // OR arg
     {
       uint8_t result = cpu.af.high | arg.read();
       cpu.af.high = result;
-      cpu.updateFlags(!result, 0, 1, 0);
+      cpu.updateFlags(!result, 0, 0, 0);
       break;
     }
     case 7: // CP arg
@@ -764,6 +766,10 @@ int operate(CPU &cpu, gb_ptr op) {
     {
       uint16_t val = cpu.stack_pop_16();
       gb_ptr_16 ptr = reg_16_or_af(cpu, (opcode >> 4) & 0x3);
+      if (opcode == 0xf1) {
+        // lower 4 bits of F register are always 0
+        val &= 0xfff0;
+      }
       ptr.write(val);
       return 3;
     }
@@ -890,7 +896,7 @@ int operate(CPU &cpu, gb_ptr op) {
       {
         uint8_t result = cpu.af.high | (op+1).read();
         cpu.af.high = result;
-        cpu.updateFlags(!result, 0, 1, 0);
+        cpu.updateFlags(!result, 0, 0, 0);
         return 2;
       }
       default:
@@ -902,7 +908,7 @@ int operate(CPU &cpu, gb_ptr op) {
     {
       // AFAICT, this should push the address of the /next/
       // instruction. Documentation is unclear.
-      uint16_t op_size = 3;
+      uint16_t op_size = 1;
       uint16_t return_addr = cpu.pc + op_size;
       cpu.stack_push_16(return_addr);
 
@@ -936,7 +942,9 @@ int operate(CPU &cpu, gb_ptr op) {
       case 0xE8: // 16-bit add of 8-bit literal to stack pointer. 4
                  // cycles. Note that flag Z is always unset.
       {
-        int8_t arg = (int8_t) (op+1).read();
+        // sign-extend argument to 16 bits (doesn't seem to work, though)
+        uint8_t arg8 = (op+1).read();
+        uint16_t arg = (arg8 & 0x80) ? (arg8 + 0xff00) : arg8;
         int result = cpu.sp + arg;
         // For 16-bit arithmetic, carry flags pay attention to the high
         // byte.
@@ -951,7 +959,9 @@ int operate(CPU &cpu, gb_ptr op) {
                  // cycles. Flags set according to the addition, as in
                  // op E8 (I think).
       {
-        int8_t arg = (int8_t) (op+1).read();
+        // sign-extend argument to 16 bits (doesn't seem to work, though)
+        uint8_t arg8 = (op+1).read();
+        uint16_t arg = (arg8 & 0x80) ? (arg8 + 0xff00) : arg8;
         int result = cpu.sp + arg;
         // For 16-bit arithmetic, carry flags pay attention to the high
         // byte.
@@ -1114,19 +1124,14 @@ int operate(CPU &cpu, gb_ptr op) {
       switch (opcode) {
       case 0xCE: // ADC A,d8
       {
-        int result = cpu.af.high + (op+1).read() + !!(cpu.af.low & FLAG_C);
-        // We carried from bit 3 iff bit 4 of the result isn't the same
-        // as the XOR of bits 4 of the arguments
-        int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ ((op+1).read() & (1<<4)));
-        int carryC = !!(result & (1<<8));
-        cpu.af.high = result & 0xff;
-        cpu.updateFlags(!result, 0, carryH, carryC);
+        uint8_t result = op_adc(cpu, (op+1).read());
+        cpu.af.high = result;
         return 2;
       }
       case 0xDE: // SBC A,d8
       {
         uint8_t result = op_sbc(cpu, (op+1).read());
+        cpu.af.high = result;
         return 2;
       }
       case 0xEE: // XOR d8
@@ -1150,7 +1155,7 @@ int operate(CPU &cpu, gb_ptr op) {
     {
       // AFAICT, this should push the address of the /next/
       // instruction. Documentation is unclear.
-      uint16_t op_size = 3;
+      uint16_t op_size = 1;
       uint16_t return_addr = cpu.pc + op_size;
       cpu.stack_push_16(return_addr);
 
@@ -1180,11 +1185,11 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
     case 0: // RLC
     {
       unsigned int rotated = arg.read() << 1;
-      arg.write((rotated & 0xff) + (rotated >> 8)); // rotate high bit to low bit
+      arg.write((rotated & 0xff) + ((rotated >> 8) & 0x1)); // rotate high bit to low bit
       // Looks like this behaves differently from RLCA, in that it
       // sets the Z flag according to the result.
       // TODO: confirm.
-      cpu.updateFlags(!rotated, 0, 0, rotated >> 8);
+      cpu.updateFlags(!(rotated & 0xff), 0, 0, rotated >> 8);
       break;
     }
     case 1: // RRC
@@ -1200,7 +1205,7 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
     {
       unsigned int rotated = arg.read() << 1;
       arg.write((rotated & 0xff) + !!(cpu.af.low & FLAG_C)); // rotate carry flag to low bit
-      cpu.updateFlags(!rotated, 0, 0, rotated >> 8);
+      cpu.updateFlags(!(rotated & 0xff), 0, 0, rotated >> 8);
       break;
     }
     case 3: // RR
@@ -1231,7 +1236,7 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
     }
     case 6: // SWAP (upper and lower nibbles)
     {
-      uint8_t result = (arg.read() >> 4) + (arg.read() << 4);
+      uint8_t result = (arg.read() >> 4) + ((arg.read() << 4) & 0xf0);
       arg.write(result);
       cpu.updateFlags(!result, 0, 0, 0);
       break;

@@ -141,11 +141,11 @@ void CPU::halt() {
 }
 
 void CPU::enableInterrupts() {
-  fprintf(stderr, "Warning: ignoring interrupt enable operation\n");
+  //fprintf(stderr, "Warning: ignoring interrupt enable operation\n");
 }
 
 void CPU::disableInterrupts() {
-  fprintf(stderr, "Warning: ignoring interrupt disable operation\n");
+  //fprintf(stderr, "Warning: ignoring interrupt disable operation\n");
 }
 
 void CPU::printState() {

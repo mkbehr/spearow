@@ -81,6 +81,7 @@ void gb_ptr::write(uint8_t to_write) {
     if (MONITOR_LINK_PORT) {
       if (addr == 0xff01) {
         printf("%c", to_write);
+        fflush(stdout);
       }
     }
 
