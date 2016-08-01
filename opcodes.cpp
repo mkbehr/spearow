@@ -297,6 +297,26 @@ inline void op_ret(CPU &cpu) {
   }
 }
 
+inline uint8_t op_cmp_or_sub8(CPU &cpu, uint8_t arg) {
+  uint8_t subtractend = ~arg + 1;
+  int result = cpu.af.high + subtractend;
+  int carryH = (result & (1<<4)) !=
+    ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
+  int carryC = !!(result & (1<<8));
+  cpu.updateFlags(!(result & 0xff), 1, carryH, carryC);
+  return result & 0xff;
+}
+
+inline uint8_t op_sbc(CPU &cpu, uint8_t arg) {
+  uint8_t subtractend = ~arg + 1;
+  int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
+  int carryH = (result & (1<<4)) !=
+    ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
+  int carryC = !!(result & (1<<8));
+  cpu.updateFlags(!(result & 0xff), 1, carryH, carryC);
+  return result & 0xff;
+}
+
 int operate(CPU &cpu, gb_ptr op) {
 
   // Execute an opcode. Returns the number of machine cycles it took
@@ -644,24 +664,14 @@ int operate(CPU &cpu, gb_ptr op) {
     }
     case 2: // SUB arg
     {
-      uint8_t subtractend = ~(arg.read()) + 1;
-      int result = cpu.af.high + subtractend;
-      int carryH = (result & (1<<4)) !=
-        ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-      int carryC = !!(result & (1<<8));
-      cpu.af.high = result & 0xff;
-      cpu.updateFlags(!result, 1, carryH, carryC);
+      uint8_t result = op_cmp_or_sub8(cpu, arg.read());
+      cpu.af.high = result;
       break;
     }
     case 3: // SBC arg
     {
-      uint8_t subtractend = ~(arg.read()) + 1;
-      int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
-      int carryH = (result & (1<<4)) !=
-        ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-      int carryC = !!(result & (1<<8));
-      cpu.af.high = result & 0xff;
-      cpu.updateFlags(!result, 1, carryH, carryC);
+      uint8_t result = op_sbc(cpu, arg.read());
+      cpu.af.high = result;
       break;
     }
     case 4: // AND arg
@@ -687,13 +697,7 @@ int operate(CPU &cpu, gb_ptr op) {
     }
     case 7: // CP arg
     {
-      // Same as SUB, but don't change A
-      uint8_t subtractend = ~(arg.read()) + 1;
-      int result = cpu.af.high + subtractend;
-      int carryH = (result & (1<<4)) !=
-        ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-      int carryC = !!(result & (1<<8));
-      cpu.updateFlags(!result, 1, carryH, carryC);
+      op_cmp_or_sub8(cpu, arg.read());
       break;
     }
     default:
@@ -871,13 +875,7 @@ int operate(CPU &cpu, gb_ptr op) {
       }
       case 0xD6: // SUB d8
       {
-        uint8_t subtractend = ~((op+1).read()) + 1;
-        int result = cpu.af.high + subtractend;
-        int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-        int carryC = !!(result & (1<<8));
-        cpu.af.high = result & 0xff;
-        cpu.updateFlags(!result, 1, carryH, carryC);
+        uint8_t result = op_cmp_or_sub8(cpu, (op+1).read());
         return 2;
       }
       case 0xE6: // AND d8
@@ -1127,13 +1125,7 @@ int operate(CPU &cpu, gb_ptr op) {
       }
       case 0xDE: // SBC A,d8
       {
-        uint8_t subtractend = ~((op+1).read()) + 1;
-        int result = cpu.af.high + subtractend - !!(cpu.af.low & FLAG_C);
-        int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-        int carryC = !!(result & (1<<8));
-        cpu.af.high = result & 0xff;
-        cpu.updateFlags(!result, 1, carryH, carryC);
+        uint8_t result = op_sbc(cpu, (op+1).read());
         return 2;
       }
       case 0xEE: // XOR d8
@@ -1145,13 +1137,7 @@ int operate(CPU &cpu, gb_ptr op) {
       }
       case 0xFE: // CP d8
       {
-        // Same as SUB, but don't change A
-        uint8_t subtractend = ~((op+1).read()) + 1;
-        int result = cpu.af.high + subtractend;
-        int carryH = (result & (1<<4)) !=
-          ((cpu.af.high & (1<<4)) ^ (subtractend & (1<<4)));
-        int carryC = !!(result & (1<<8));
-        cpu.updateFlags(!result, 1, carryH, carryC);
+        op_cmp_or_sub8(cpu, (op+1).read());
         return 2;
       }
       default:
