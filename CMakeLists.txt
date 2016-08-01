@@ -9,6 +9,12 @@ endif()
 set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_STANDARD 14)
 
+add_compile_options("-O3")
+
+if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+  add_compile_options("-g")
+endif()
+
 add_executable(cpu-test cpu-test.cpp)
 
 add_library(mem mem.cpp)
