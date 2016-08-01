@@ -78,6 +78,12 @@ void gb_ptr::write(uint8_t to_write) {
   {
     const uint16_t addr = val.addr;
 
+    if (MONITOR_LINK_PORT) {
+      if (addr == 0xff01) {
+        printf("%c", to_write);
+      }
+    }
+
     // TODO: respect switchable RAM bank
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {

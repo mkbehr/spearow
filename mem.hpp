@@ -6,6 +6,8 @@
 
 const int MEM_WARN = 0;
 
+const int MONITOR_LINK_PORT = 1;
+
 enum gb_ptr_type {
   GB_PTR_MEM,
   GB_PTR_REG,
