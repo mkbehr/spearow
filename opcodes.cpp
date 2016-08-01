@@ -841,7 +841,7 @@ int operate(CPU &cpu, gb_ptr op) {
       case 0xD4: // Absolute call, conditional on NC. 3 or 6 cycles,
                  // flags unmodified.
       {
-        if (cpu.af.low & FLAG_Z) {
+        if (cpu.af.low & FLAG_C) {
           return 3;
         } else {
           uint16_t call_addr = (op+1).read_16();
@@ -1076,7 +1076,7 @@ int operate(CPU &cpu, gb_ptr op) {
       case 0xDC: // Absolute call, conditional on C. 3 or 6 cycles,
                  // flags unmodified.
       {
-        if (cpu.af.low & FLAG_Z) {
+        if (cpu.af.low & FLAG_C) {
           uint16_t call_addr = (op+1).read_16();
           op_call(cpu, call_addr);
           return 6;
