@@ -47,8 +47,13 @@ uint8_t gb_ptr::read() {
       return cpu.highRam[addr - HIGH_RAM_BASE];
     }
 
-    fprintf(stderr, "Read from unimplemented address %04x\n", addr);
-    exit(0);
+    if (MEM_WARN) {
+      fprintf(stderr, "Reading 0 from unimplemented address %04x\n", addr);
+    }
+    return 0;
+
+    // fprintf(stderr, "Read from unimplemented address %04x\n", addr);
+    // exit(0);
   }
   case GB_PTR_REG:
   {
@@ -97,8 +102,13 @@ void gb_ptr::write(uint8_t to_write) {
       return;
     }
 
-    fprintf(stderr, "Write to unimplemented address %04x\n", addr);
-    exit(0);
+    if (MEM_WARN) {
+      fprintf(stderr, "Ignoring write to unimplemented address %04x\n", addr);
+    }
+    return;
+
+    // fprintf(stderr, "Write to unimplemented address %04x\n", addr);
+    // exit(0);
   }
   case GB_PTR_REG:
   {

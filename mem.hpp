@@ -4,6 +4,8 @@
 
 #include "cpu.hpp"
 
+const int MEM_WARN = 0;
+
 enum gb_ptr_type {
   GB_PTR_MEM,
   GB_PTR_REG,

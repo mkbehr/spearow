@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -6,6 +7,8 @@
 #include "cpu.hpp"
 #include "mem.hpp"
 #include "opcodes.hpp"
+
+long opcode_counts[256] = {};
 
 const int OPCODE_LENGTHS[256] = {
   // 00-0f
@@ -280,12 +283,18 @@ inline void op_call(CPU &cpu, uint16_t call_addr) {
   // bytes long.
   uint16_t op_size = 3;
   uint16_t return_addr = cpu.pc + op_size;
+  if (TRACE_CALLS) {
+    printf("CALL: %04x -> %04x\n", cpu.pc, call_addr);
+  }
   cpu.stack_push_16(return_addr);
   cpu.next_pc = call_addr;
 }
 
 inline void op_ret(CPU &cpu) {
   cpu.next_pc = cpu.stack_pop_16();
+  if (TRACE_CALLS) {
+    printf("RET: %04x -> %04x\n", cpu.pc, cpu.next_pc);
+  }
 }
 
 int operate(CPU &cpu, gb_ptr op) {
@@ -294,6 +303,10 @@ int operate(CPU &cpu, gb_ptr op) {
   // (1 machine cycle = 4 clock cycles)
 
   uint8_t opcode = op.read();
+
+  if (COUNT_OPCODES) {
+    opcode_counts[opcode]++;
+  }
 
   // Opcode table is divided into four regions by top two bits of opcode.
   switch (opcode & 0xC0) {
