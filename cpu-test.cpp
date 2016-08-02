@@ -55,6 +55,63 @@ int instr_sbc_imm() {
   return 1;
 }
 
+int instr_daa() {
+  // Test daa by actually trying to add and subtract integers. TODO:
+  // figure out correct behavior for overflow here.
+  for (int a = 0; a < 100; a++) {
+    for (int b = 0; b < 100; b++) {
+      // test addition
+      {
+        CPU cpu;
+        cpu.rom.empty();
+        cpu.rom.push_back(0x80); // ADD B
+        cpu.rom.push_back(0x27); // DAA
+        cpu.rom.push_back(0x00);
+        cpu.pc = 0x0;
+        int a_bcd = (a % 10) + (a / 10) * 0x10;
+        cpu.af.high = (uint8_t) a_bcd;
+        int b_bcd = (b % 10) + (b / 10) * 0x10;
+        cpu.bc.high = (uint8_t) b_bcd;
+        cpu.tick();
+        cpu.tick();
+        int sum = a+b;
+        int sum_bcd = (sum % 10) + ((sum % 100) / 10) * 0x10;
+        if (cpu.af.high != sum_bcd) {
+          printf("DAA failed: tried BCD %02x + %02x, expected BCD %02x, got BCD %02x\n",
+                 a_bcd, b_bcd, sum_bcd, cpu.af.high);
+          return 0;
+        }
+      }
+      // test subtraction
+      if (a >= b) {
+        CPU cpu;
+        cpu.rom.empty();
+        cpu.rom.push_back(0x90); // SUB B
+        cpu.rom.push_back(0x27); // DAA
+        cpu.pc = 0x0;
+        int a_bcd = (a % 10) + (a / 10) * 0x10;
+        cpu.af.high = (uint8_t) a_bcd;
+        int b_bcd = (b % 10) + (b / 10) * 0x10;
+        cpu.bc.high = (uint8_t) b_bcd;
+        cpu.tick();
+        cpu.tick();
+        int diff = a-b;
+        if (diff < 0) {
+          diff += 100;
+        }
+        int diff_bcd = (diff % 10) + ((diff % 100) / 10) * 0x10;
+        if (cpu.af.high != diff_bcd) {
+          printf("DAA failed: tried BCD %02x - %02x, expected BCD %02x, got BCD %02x\n",
+                 a_bcd, b_bcd, diff_bcd, cpu.af.high);
+          return 0;
+        }
+
+      }
+    }
+  }
+  return 1;
+}
+
 int main() {
   std::cout << "Test register_pair_union: " <<
     (register_pair_union() ? "passed" : "failed") <<
@@ -62,6 +119,10 @@ int main() {
   int sbc_pass = instr_sbc_imm();
   std::cout << "Test instr_sbc_imm: " <<
     (sbc_pass ? "passed" : "failed") <<
+    "\n";
+  int daa_pass = instr_daa();
+  std::cout << "Test instr_daa: " <<
+    (daa_pass ? "passed" : "failed") <<
     "\n";
   return 0;
 }

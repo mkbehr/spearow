@@ -467,16 +467,30 @@ int operate(CPU &cpu, gb_ptr op) {
                  // the value of A represents the BCD result. 1 cycle.
                  // Flags Z, H, and C modified.
       {
-        // DAA algorithm taken from http://z80-heaven.wikidot.com/instructions-set:daa
         int newFlagC = 0;
-        if (((cpu.af.high & 0xf) > 9) || (cpu.af.low & FLAG_H)) {
-          cpu.af.high += 6;
+        int result = cpu.af.high;
+        if (cpu.af.low & FLAG_N) {
+          // adjust for subtraction
+          if (cpu.af.low & FLAG_H) {
+            result -= 6;
+            result &= 0xff;
+          }
+          if (cpu.af.low & FLAG_C) {
+            result -= 0x60;
+          }
+        } else {
+          // adjust for addition
+          if (((result & 0xf) > 9) || (cpu.af.low & FLAG_H)) {
+            result += 6;
+          }
+          if (((result & 0x1f0) > 0x90) || (cpu.af.low & FLAG_C)) {
+            result += 0x60;
+          }
         }
-        if (((cpu.af.high & 0xf0) > 0x90) || (cpu.af.low & FLAG_C)) {
-          newFlagC = 1;
-          cpu.af.high += 0x60;
-        }
-        cpu.updateFlags(!cpu.af.high, -1, 0, newFlagC);
+        cpu.updateFlags(!(result & 0xff), -1, 0,
+                        // If we were carrying before, we're still carrying
+                        !!(cpu.af.low & FLAG_C) || !!(result >> 8));
+        cpu.af.high = result & 0xff;
         return 1;
       }
       case 0x37: // SCF. Sets carry flag. Unsets N and H flags, Z unmodified. 1 cycle.
@@ -583,7 +597,7 @@ int operate(CPU &cpu, gb_ptr op) {
       case 0x0f: // 0f: RRCA. Rotate A right, LSB to carry flag and
                  // MSB. All other flags are unset. 1 cycle.
       {
-        unsigned int rotated = cpu.af.high >> 1;
+        uint8_t rotated = cpu.af.high >> 1;
         int flagC = (cpu.af.high & 1);
         cpu.af.high = rotated + (flagC << 7);
         cpu.updateFlags(0, 0, 0, flagC);
