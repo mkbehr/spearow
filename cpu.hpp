@@ -96,6 +96,7 @@ public:
   CPU();
 
   void printState();
+  void printFlags(uint8_t);
 
   void tick();
 

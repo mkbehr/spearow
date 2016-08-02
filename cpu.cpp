@@ -152,11 +152,8 @@ void CPU::printState() {
   printf("AF=%04x BC=%04x DE=%04x HL=%04x ",
          af.full, bc.full, de.full, hl.full);
   printf("SP=%04x PC=%04x ", sp, pc);
-  printf("[%c%c%c%c]\n",
-         (af.low & FLAG_Z) ? 'Z' : '-',
-         (af.low & FLAG_N) ? 'N' : '-',
-         (af.low & FLAG_H) ? 'H' : '-',
-         (af.low & FLAG_C) ? 'C' : '-');
+  printFlags(af.low);
+  printf("\n");
   uint8_t op_first = gb_mem_ptr(*this, pc).read();
   const char *opcode_name = op_first == 0xcb ?
     CB_OPCODE_NAMES[gb_mem_ptr(*this, pc+1).read()] :
@@ -167,4 +164,12 @@ void CPU::printState() {
     printf(" %02x", arg);
   }
   printf("\n");
+}
+
+void CPU::printFlags(uint8_t flags) {
+  printf("[%c%c%c%c]",
+         (flags & FLAG_Z) ? 'Z' : '-',
+         (flags & FLAG_N) ? 'N' : '-',
+         (flags & FLAG_H) ? 'H' : '-',
+         (flags & FLAG_C) ? 'C' : '-');
 }

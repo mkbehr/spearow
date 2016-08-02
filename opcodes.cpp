@@ -331,10 +331,10 @@ inline uint8_t op_cmp_or_sub8(CPU &cpu, uint8_t arg) {
 }
 
 inline uint8_t op_sbc(CPU &cpu, uint8_t arg) {
-  int subtractend = arg + !!(cpu.af.high & FLAG_C);
-  int result = cpu.af.high - subtractend;
-  int flagZ = (result == 0);
-  int flagH = ((cpu.af.high & 0xf) - (subtractend & 0xf) < 0);
+  int carry = !!(cpu.af.low & FLAG_C);
+  int result = cpu.af.high - arg - carry;
+  int flagZ = ((result & 0xff) == 0);
+  int flagH = ((cpu.af.high & 0xf) - (arg & 0xf) - carry < 0);
   int flagC = (result < 0);
   cpu.updateFlags(flagZ, 1, flagH, flagC);
   return result & 0xff;

@@ -9,18 +9,18 @@ endif()
 set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_STANDARD 14)
 
-add_compile_options("-O3")
+add_compile_options("-O3" "-Wall")
 
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
   add_compile_options("-g")
 endif()
-
-add_executable(cpu-test cpu-test.cpp)
 
 add_library(mem mem.cpp)
 
 add_library(cpu cpu.cpp)
 
 add_library(opcodes opcodes.cpp)
+
+add_executable(cpu-test cpu-test.cpp cpu opcodes mem)
 
 add_executable(spearow spearow.cpp cpu opcodes mem)
