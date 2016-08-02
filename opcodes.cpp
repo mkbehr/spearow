@@ -942,15 +942,19 @@ int operate(CPU &cpu, gb_ptr op) {
       case 0xE8: // 16-bit add of 8-bit literal to stack pointer. 4
                  // cycles. Note that flag Z is always unset.
       {
-        // sign-extend argument to 16 bits (doesn't seem to work, though)
+        // flag behavior according to http://forums.nesdev.com/viewtopic.php?p=42138 is:
+
+        // "Both of these set carry and half-carry based on the low
+        // byte of SP added to the UNSIGNED immediate byte."
+
+        // sign-extend argument to 16 bits
         uint8_t arg8 = (op+1).read();
         uint16_t arg = (arg8 & 0x80) ? (arg8 + 0xff00) : arg8;
         int result = cpu.sp + arg;
-        // For 16-bit arithmetic, carry flags pay attention to the high
-        // byte.
-        int carryH = (result & (1<<12)) !=
-          ((cpu.sp & (1<<12)) ^ (arg & (1<<12)));
-        int carryC = !!(result & (1<<16));
+        int carryH = (result & (1<<4)) !=
+          ((cpu.sp & (1<<4)) ^ (arg & (1<<4)));
+        int carryC = (result & (1<<8)) !=
+          ((cpu.sp & (1<<8)) ^ (arg & (1<<8)));
         cpu.updateFlags(0, 0, carryH, carryC);
         cpu.sp = result & 0xffff;
         return 4;
@@ -963,11 +967,10 @@ int operate(CPU &cpu, gb_ptr op) {
         uint8_t arg8 = (op+1).read();
         uint16_t arg = (arg8 & 0x80) ? (arg8 + 0xff00) : arg8;
         int result = cpu.sp + arg;
-        // For 16-bit arithmetic, carry flags pay attention to the high
-        // byte.
-        int carryH = (result & (1<<12)) !=
-          ((cpu.sp & (1<<12)) ^ (arg & (1<<12)));
-        int carryC = !!(result & (1<<16));
+        int carryH = (result & (1<<4)) !=
+          ((cpu.sp & (1<<4)) ^ (arg & (1<<4)));
+        int carryC = (result & (1<<8)) !=
+          ((cpu.sp & (1<<8)) ^ (arg & (1<<8)));
         cpu.updateFlags(0, 0, carryH, carryC);
         cpu.hl.full = result & 0xffff;
         return 3;
