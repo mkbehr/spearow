@@ -1198,15 +1198,17 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
   gb_ptr arg = reg_8_all_or_indirect(cpu, (cb_op & 7), did_increment);
   switch (cb_op & 0xC0) {
   case 0x00:
+  {
     switch ((cb_op >> 3) & 7) {
     case 0: // RLC
     {
       unsigned int rotated = arg.read() << 1;
+      int flagZ = !(arg.read());
       arg.write((rotated & 0xff) + ((rotated >> 8) & 0x1)); // rotate high bit to low bit
       // Looks like this behaves differently from RLCA, in that it
       // sets the Z flag according to the result.
       // TODO: confirm.
-      cpu.updateFlags(!(rotated & 0xff), 0, 0, rotated >> 8);
+      cpu.updateFlags(flagZ, 0, 0, rotated >> 8);
       break;
     }
     case 1: // RRC
@@ -1221,17 +1223,18 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
     case 2: // RL
     {
       unsigned int rotated = arg.read() << 1;
-      arg.write((rotated & 0xff) + !!(cpu.af.low & FLAG_C)); // rotate carry flag to low bit
-      cpu.updateFlags(!(rotated & 0xff), 0, 0, rotated >> 8);
+      uint8_t out = (rotated & 0xff) + !!(cpu.af.low & FLAG_C); // rotate carry flag to low bit
+      arg.write(out);
+      cpu.updateFlags(!out, 0, 0, rotated >> 8);
       break;
     }
     case 3: // RR
     {
       unsigned int rotated = arg.read() >> 1;
-      int flagZ = !(arg.read());
       int flagC = (arg.read() & 1);
-      arg.write(rotated + (!!(cpu.af.low & FLAG_C) << 7));
-      cpu.updateFlags(flagZ, 0, 0, flagC);
+      uint8_t out = rotated + (!!(cpu.af.low & FLAG_C) << 7);
+      arg.write(out);
+      cpu.updateFlags(!out, 0, 0, flagC);
       break;
     }
     case 4: // SLA (shift left into carry)
@@ -1241,14 +1244,13 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
       cpu.updateFlags(!(rotated & 0xff), 0, 0, rotated >> 8);
       break;
     }
-
     case 5: // SRA (shift right into carry, high bit stays same)
     {
       unsigned int rotated = arg.read() >> 1;
-      int flagZ = !(arg.read());
       int flagC = (arg.read() & 1);
-      arg.write(rotated + ((rotated << 1) & 0x80)); // high bit stays the same
-      cpu.updateFlags(flagZ, 0, 0, flagC);
+      int out = rotated + ((rotated << 1) & 0x80); // high bit stays the same
+      arg.write(out);
+      cpu.updateFlags(!out, 0, 0, flagC);
       break;
     }
     case 6: // SWAP (upper and lower nibbles)
@@ -1261,7 +1263,7 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
     case 7: // SRL (shift right into carry, high bit cleared)
     {
       unsigned int rotated = arg.read() >> 1;
-      int flagZ = !(arg.read());
+      int flagZ = !rotated;
       int flagC = (arg.read() & 1);
       arg.write(rotated);
       cpu.updateFlags(flagZ, 0, 0, flagC);
@@ -1270,6 +1272,8 @@ int cb_prefix_operate(CPU &cpu, uint8_t cb_op) {
     default:
       throw std::logic_error("Bad opcode bits");
     }
+    break;
+  }
   case 0x40: // BIT
   {
     uint8_t bit = (cb_op >> 3) & 7;
