@@ -6,6 +6,7 @@
    - break: add breakpoint
    - clear: remove breakpoint
    - cont: continue execution, stopping at breakpoints
+   - shutdown: stop emulator
 
 
    - exit: exit debugger
@@ -25,7 +26,26 @@
 
 using namespace std;
 
+// TODO fix include discipline so we can put this in the header
+// without linker errors
+bool DEBUG_SHUTDOWN_ON_EOF = 1;
+
 vector<uint16_t> breakpoints;
+
+bool read_addr(stringstream &cmdstream, uint16_t &addr){
+  int out;
+  cmdstream >> hex >> out;
+  if (!cmdstream) {
+    printf("Couldn't read address\n");
+    return 0;
+  }
+  if ((out < 0) || (out > 0xffff)) {
+    printf("Bad address 0x%x\n", out);
+    return 0;
+  }
+  addr = out;
+  return 1;
+}
 
 void cmd_state(CPU &cpu, stringstream &cmdstream) {
   cpu.printState();
@@ -33,14 +53,8 @@ void cmd_state(CPU &cpu, stringstream &cmdstream) {
 
 void cmd_read(CPU &cpu, stringstream &cmdstream) {
   // Read as hex by default
-  int addr;
-  cmdstream >> hex >> addr;
-  if (!cmdstream) {
-    printf("Couldn't read address\n");
-    return;
-  }
-  if ((addr < 0) || (addr > 0xffff)) {
-    printf("Bad address %x\n", addr);
+  uint16_t addr;
+  if (!read_addr(cmdstream, addr)) {
     return;
   }
   int bytes;
@@ -60,14 +74,8 @@ void cmd_read(CPU &cpu, stringstream &cmdstream) {
 }
 
 void cmd_write(CPU &cpu, stringstream &cmdstream) {
-  int addr;
-  cmdstream >> hex >> addr;
-  if (!cmdstream) {
-    printf("Couldn't read address\n");
-    return;
-  }
-  if ((addr < 0) || (addr > 0xffff)) {
-    printf("Bad address %x\n", addr);
+  uint16_t addr;
+  if (!read_addr(cmdstream, addr)) {
     return;
   }
 
@@ -99,14 +107,8 @@ void cmd_step(CPU &cpu, stringstream &cmdstream) {
 }
 
 void cmd_break(CPU &cpu, stringstream &cmdstream) {
-  int addr;
-  cmdstream >> hex >> addr;
-  if (!cmdstream) {
-    printf("Couldn't read address\n");
-    return;
-  }
-  if ((addr < 0) || (addr > 0xffff)) {
-    printf("Bad address %x\n", addr);
+  uint16_t addr;
+  if (!read_addr(cmdstream, addr)) {
     return;
   }
   if (find(breakpoints.begin(), breakpoints.end(),
@@ -124,7 +126,10 @@ void cmd_break(CPU &cpu, stringstream &cmdstream) {
 }
 
 void cmd_clear(CPU &cpu, stringstream &cmdstream) {
-  int addr;
+  uint16_t addr;
+  if (!read_addr(cmdstream, addr)) {
+    return;
+  }
   cmdstream >> hex >> addr;
   if (!cmdstream) {
     printf("Couldn't read address\n");
@@ -159,14 +164,53 @@ void cmd_continue(CPU &cpu, stringstream &cmdstream) {
   cpu.printState();
 }
 
+void cmd_shutdown(CPU &cpu, stringstream &cmdstream) {
+  exit(0);
+}
+
+// tilea: print tile data from an address
+void cmd_tilea(CPU &cpu, stringstream &cmdstream) {
+  uint16_t base;
+  if (!read_addr(cmdstream, base)) {
+    return;
+  }
+  for (int row = 0; row < 8; row++) {
+    uint8_t low_byte = gb_mem_ptr(cpu, base + row*2).read();
+    uint8_t high_byte = gb_mem_ptr(cpu, base + row*2 + 1).read();
+    for (int col = 0; col < 8; col++) {
+      int out = 0;
+      if (low_byte & (1<<(7-col))) {
+        out += 1;
+      }
+      if (high_byte & (1<<(7-col))) {
+        out += 2;
+      }
+      if (out) {
+        cout << out;
+      } else {
+        cout << '.';
+      }
+    }
+    cout << '\n';
+  }
+}
+
 const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"state", cmd_state},
+  {"read", cmd_read},
   {"r", cmd_read},
+  {"write", cmd_write},
   {"w", cmd_write},
   {"step", cmd_step},
+  {"s", cmd_step},
   {"break", cmd_break},
+  {"b", cmd_break},
   {"clear", cmd_clear},
   {"cont", cmd_continue},
+  {"c", cmd_continue},
+  {"shutdown", cmd_shutdown},
+  {"sd", cmd_shutdown},
+  {"tilea", cmd_tilea},
 };
 
 void run_debugger(CPU &cpu) {
@@ -177,6 +221,10 @@ void run_debugger(CPU &cpu) {
     cout << "> ";
     getline(cin, cmd_full);
     if (!cin) {
+      if (DEBUG_SHUTDOWN_ON_EOF) {
+        cout << "\n";
+        exit(0);
+      }
       break;
     }
     if (cmd_full.empty()) {

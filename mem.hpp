@@ -21,7 +21,10 @@ const uint16_t ROM_BANK_SIZE = 0x4000;
 const uint16_t IO_BASE = 0xff00;
 const uint16_t IO_SIZE = 0x80;
 
+const uint16_t VRAM_BASE = 0x8000;
 
+// Registers. Note: the GBC has more registers here. See the official
+// programming manual.
 
 // misc. registers
 const uint16_t REG_JOYPAD = 0xff00; // R/W; also called P1
@@ -125,5 +128,4 @@ gb_ptr_16 gb_reg16_ptr(CPU &, uint16_t *);
 mbc_type cart_mbc_type(CPU &);
 int rom_bank_offset(CPU &);
 
-
-#endif // $ifndef MEM_H
+#endif // #ifndef MEM_H

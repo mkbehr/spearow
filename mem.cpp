@@ -103,6 +103,11 @@ uint8_t gb_ptr::read() {
       return cpu.rom.at(addr - ROM_SWITCHABLE_BASE + rom_bank_offset(cpu));
     }
 
+    if ((VRAM_BASE <= addr) &&
+        (addr < VRAM_BASE + VRAM_SIZE)) {
+      return cpu.vram[addr - VRAM_BASE];
+    }
+
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
       return cpu.ram[addr - RAM_BASE];
@@ -121,6 +126,8 @@ uint8_t gb_ptr::read() {
       }
     }
 
+    // COMPAT: the official gameboy programming manual suggests that
+    // the unused addresses here might just be regular RAM? Unclear.
     if ((IO_BASE <= addr) &&
         (addr < IO_BASE + IO_SIZE)) {
       switch (addr) {
@@ -186,6 +193,11 @@ void gb_ptr::write(uint8_t to_write) {
   {
     const uint16_t addr = val.addr;
 
+    if ((VRAM_BASE <= addr) &&
+        (addr < VRAM_BASE + VRAM_SIZE)) {
+      cpu.vram[addr - VRAM_BASE] = to_write;
+      return;
+    }
 
     // TODO: respect switchable RAM bank
     if ((RAM_BASE <= addr) &&
@@ -237,6 +249,10 @@ void gb_ptr::write(uint8_t to_write) {
       case REG_INTERRUPT:
         // COMPAT Are these masks correct? Unclear.
         cpu.interrupts_raised = to_write & INT_ALL;
+        break;
+      // Video registers
+      case REG_LCD_CONTROL:
+        printf("Write %02x to REG_LCD_CONTROL\n", to_write);
         break;
       default:
         break;
