@@ -8,6 +8,43 @@ const int MEM_WARN = 0;
 
 const int MONITOR_LINK_PORT = 1;
 
+// misc. registers
+const uint16_t REG_JOYPAD = 0xff00; // R/W; also called P1
+const uint16_t REG_SERIAL_DATA = 0xff01; // R/W; also called SB
+const uint16_t REG_SERIAL_CONTROL = 0xff02; // R/W; also called SC
+const uint16_t REG_DIVIDER = 0xff04; // R/W; DIV
+const uint16_t REG_TIMER_COUNT = 0xff05; // R/W; TIMA
+const uint16_t REG_TIMER_MOD = 0xff06; // R/W; TMA
+const uint16_t REG_TIMER_CONTROL = 0xff07; // R/W; TAC
+const uint16_t REG_INTERRUPT = 0xff0f; // R/W; IF
+const uint16_t REG_INTERRUPT_ENABLE = 0xffff; // R/W; IE
+// sound registers: R/W except NR 13, NR 23, NR 33
+const uint16_t REG_SOUND_1_BASE = 0xff10; // NR 10 through NR 14
+const uint16_t REG_SOUND_1_SIZE = 5;
+const uint16_t REG_SOUND_2_BASE = 0xff16; // NR 21 through NR 24
+const uint16_t REG_SOUND_2_SIZE = 4;
+const uint16_t REG_SOUND_3_BASE = 0xff1a; // NR 30 through NR 34
+const uint16_t REG_SOUND_3_SIZE = 4;
+const uint16_t REG_SOUND_4_BASE = 0xff20; // NR 41 through NR 44
+const uint16_t REG_SOUND_4_SIZE = 4;
+const uint16_t REG_SOUND_5_BASE = 0xff24; // NR 50 through NR 52
+const uint16_t REG_SOUND_5_SIZE = 3;
+const uint16_t WAVE_RAM_START = 0xff30;
+const uint16_t WAVE_RAM_SIZE = 0x10;
+// display registers
+const uint16_t REG_LCD_CONTROL = 0xff40; // R/W; LCDC
+const uint16_t REG_LCD_STATUS = 0xff41; // R/W; STAT
+const uint16_t REG_SCROLL_Y = 0xff42; // R/W; SCY
+const uint16_t REG_SCROLL_X = 0xff43; // R/W; SCX
+const uint16_t REG_LCD_Y = 0xff44; // R; LY
+const uint16_t REG_LCD_Y_COMPARE = 0xff45; // R/W; LYC
+const uint16_t REG_DMA = 0xff46; // W; DMA
+const uint16_t REG_BG_PALETTE = 0xff47; // R/W; BGP
+const uint16_t REG_OBJ_PALETTE_0 = 0xff48; // R/W; OBP0
+const uint16_t REG_OBJ_PALETTE_1 = 0xff49; // R/W; OBP1
+const uint16_t REG_WINDOW_Y = 0xff4a; // R/W; WY
+const uint16_t REG_WINDOW_X = 0xff4b; // R/W; WX
+
 enum gb_ptr_type {
   GB_PTR_MEM,
   GB_PTR_REG,
