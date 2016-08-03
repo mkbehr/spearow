@@ -21,6 +21,8 @@ add_library(cpu cpu.cpp)
 
 add_library(opcodes opcodes.cpp)
 
+add_library(debugger debugger.cpp)
+
 add_executable(cpu-test cpu-test.cpp cpu opcodes mem)
 
-add_executable(spearow spearow.cpp cpu opcodes mem)
+add_executable(spearow spearow.cpp cpu opcodes mem debugger)

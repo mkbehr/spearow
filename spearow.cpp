@@ -9,6 +9,7 @@
 #include "cpu.hpp"
 #include "mem.hpp"
 #include "opcodes.hpp"
+#include "debugger.hpp"
 
 // const char *TEST_ROMPATH="cpu_instrs.gb";
 // const uint16_t PRINT_STR_HL_ADDR = 0x02d7;
@@ -117,6 +118,8 @@ int main(int argc, char **argv) {
   // runFiniteInstrs(cpu, 10, 1);
   // return 0;
 
+  run_debugger(cpu);
+
   for (unsigned long long i = 0; i < 100000000; i++) {
     cpu.tick();
     // if (cpu.pc == PRINT_HEX_NOCRC) {
@@ -165,6 +168,8 @@ int main(int argc, char **argv) {
     //   cpu.printState();
     // }
   }
+
+  run_debugger(cpu);
 
   return 0;
 
