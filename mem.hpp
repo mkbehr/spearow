@@ -8,6 +8,21 @@ const int MEM_WARN = 0;
 
 const int MONITOR_LINK_PORT = 1;
 
+const uint16_t RAM_BASE = 0xc000;
+const uint16_t RAM_ECHO_BASE = 0xe000;
+const uint16_t RAM_ECHO_TOP = 0xfdff;
+
+const uint16_t HIGH_RAM_BASE = 0xff80;
+
+const uint16_t ROM_BASE = 0;
+const uint16_t ROM_SWITCHABLE_BASE = 0x4000;
+const uint16_t ROM_BANK_SIZE = 0x4000;
+
+const uint16_t IO_BASE = 0xff00;
+const uint16_t IO_SIZE = 0x80;
+
+
+
 // misc. registers
 const uint16_t REG_JOYPAD = 0xff00; // R/W; also called P1
 const uint16_t REG_SERIAL_DATA = 0xff01; // R/W; also called SB

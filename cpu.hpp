@@ -26,25 +26,32 @@ typedef union register_pair {
   uint16_t full;
 } register_pair;
 
+const unsigned int RAM_SIZE = 0x2000;
+const unsigned int HIGH_RAM_SIZE = 0x7f; // very top is IE register
+
 const int FLAG_Z = 1 << 7; // zero flag
 const int FLAG_N = 1 << 6; // subtract flag
 const int FLAG_H = 1 << 5; // half-carry flag
 const int FLAG_C = 1 << 4; // carry flag
 
+const uint8_t INT_VBLANK = 1<<0;
+const uint16_t INT_VBLANK_ADDR = 0x0040;
+const uint8_t INT_LCDC = 1<<1;
+const uint16_t INT_LCDC_ADDR = 0x0048;
+const uint8_t INT_TIMER = 1<<2;
+const uint16_t INT_TIMER_ADDR = 0x0050;
+const uint8_t INT_SERIAL = 1<<3;
+const uint16_t INT_SERIAL_ADDR = 0x0058;
+const uint8_t INT_JOYPAD = 1<<4;
+const uint16_t INT_JOYPAD_ADDR = 0x0060;
+const uint8_t INT_ALL = (INT_VBLANK |
+                         INT_LCDC |
+                         INT_TIMER |
+                         INT_SERIAL |
+                         INT_JOYPAD);
+
 const uint16_t INITIAL_SP = 0xfffe;
 const uint16_t INITIAL_PC = 0x0000;
-
-const unsigned int RAM_SIZE = 0x2000;
-const uint16_t RAM_BASE = 0xc000;
-const uint16_t RAM_ECHO_BASE = 0xe000;
-const uint16_t RAM_ECHO_TOP = 0xfdff;
-
-const unsigned int HIGH_RAM_SIZE = 0x80;
-const uint16_t HIGH_RAM_BASE = 0xff80;
-
-const uint16_t ROM_BASE = 0;
-const uint16_t ROM_SWITCHABLE_BASE = 0x4000;
-const uint16_t ROM_BANK_SIZE = 0x4000;
 
 // TODO the value of A after the logo startup sequence should depend
 // on gameboy type: gameboy and super gameboy are 0x01, gameboy pocket
@@ -116,6 +123,10 @@ public:
   uint8_t ram[RAM_SIZE];
   uint8_t highRam[HIGH_RAM_SIZE];
 
+  uint8_t interrupts_raised;
+  uint8_t interrupts_enabled;
+  bool interrupt_master_enable;
+
   uint8_t stack_pop();
   void stack_push(uint8_t x);
 
@@ -125,8 +136,8 @@ public:
   void stop(); // TODO
   void halt(); // TODO
 
-  void disableInterrupts(); // TODO
-  void enableInterrupts(); // TODO
+  void disableInterrupts();
+  void enableInterrupts();
 
   std::vector<uint8_t> rom;
 

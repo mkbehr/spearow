@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -12,7 +13,9 @@
 
 CPU::CPU()
   : af({.full=0}), bc({.full=0}), de({.full=0}), hl({.full=0}),
-    sp(INITIAL_SP), pc(INITIAL_PC), next_pc(0)
+    sp(INITIAL_SP), pc(INITIAL_PC), next_pc(0),
+    interrupts_raised(0),
+    interrupts_enabled(0), interrupt_master_enable(0)
 {
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
@@ -52,6 +55,42 @@ void CPU::loadRom(const char *filepath) {
 }
 
 void CPU::tick() {
+  // handle interrupts
+  if (interrupt_master_enable) {
+    uint8_t interrupts = interrupts_enabled & interrupts_raised & INT_ALL;
+    if (interrupts) {
+      printf("Handling interrupt\n");
+      uint8_t chosen_interrupt;
+      uint16_t addr;
+      if (interrupts & INT_VBLANK) {
+        chosen_interrupt = INT_VBLANK;
+        addr = INT_VBLANK_ADDR;
+      } else if (interrupts & INT_LCDC) {
+        chosen_interrupt = INT_LCDC;
+        addr = INT_LCDC_ADDR;
+      } else if (interrupts & INT_TIMER) {
+        chosen_interrupt = INT_TIMER;
+        addr = INT_TIMER_ADDR;
+      } else if (interrupts & INT_SERIAL) {
+        chosen_interrupt = INT_SERIAL;
+        addr = INT_SERIAL_ADDR;
+      } else {
+        assert(interrupts & INT_JOYPAD);
+        chosen_interrupt = INT_JOYPAD;
+        addr = INT_JOYPAD_ADDR;
+      }
+      // Interrupt procedure:
+      // - unset corresponding bit in request register
+      // - unset master enable flag
+      // - push PC onto stack
+      // - jump to interrupt vector
+      interrupts_raised &= ~chosen_interrupt;
+      interrupt_master_enable = 0;
+      stack_push_16(pc);
+      pc = addr;
+    }
+  }
+
   uint8_t op_first = gb_mem_ptr(*this, pc).read();
   next_pc = pc + OPCODE_LENGTHS[op_first];
   int cyclesElapsed = operate(*this, gb_mem_ptr(*this, pc));
@@ -131,8 +170,8 @@ void CPU::stack_push_16(uint16_t x) {
 
 
 void CPU::stop() {
-  fprintf(stderr, "Unimplemented feature: stop\n");
-  exit(0);
+  //fprintf(stderr, "Unimplemented feature: stop\n");
+  //exit(0);
 }
 
 void CPU::halt() {
@@ -141,11 +180,15 @@ void CPU::halt() {
 }
 
 void CPU::enableInterrupts() {
-  //fprintf(stderr, "Warning: ignoring interrupt enable operation\n");
+  // TODO: this actually shouldn't enable interrupts until the next
+  // instruction, at least in the case of EI
+  interrupt_master_enable = 1;
 }
 
 void CPU::disableInterrupts() {
-  //fprintf(stderr, "Warning: ignoring interrupt disable operation\n");
+  // TODO: this actually shouldn't disable interrupts until the next
+  // instruction, at least in the case of DI
+  interrupt_master_enable = 0;
 }
 
 void CPU::printState() {

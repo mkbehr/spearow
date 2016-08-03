@@ -37,14 +37,37 @@ uint8_t gb_ptr::read() {
       return cpu.ram[addr - RAM_ECHO_BASE];
     }
 
-    if (HIGH_RAM_BASE <= addr) {
-      // Test addr against edge of high ram with a static assert to
-      // avoid -Wtautological-constant-out-of-range-compare complaining
-      static_assert(
-        std::numeric_limits< decltype(addr) >::max()
-        < (int) HIGH_RAM_BASE + (int) HIGH_RAM_SIZE,
-        "High ram should occupy the top of memory");
+    if ((IO_BASE <= addr) &&
+        (addr < IO_BASE + IO_SIZE)) {
+      switch (addr) {
+      case REG_JOYPAD:
+        break;
+      case REG_SERIAL_DATA:
+        break;
+      case REG_SERIAL_CONTROL:
+        break;
+      case REG_DIVIDER:
+        break;
+      case REG_TIMER_COUNT:
+        break;
+      case REG_TIMER_MOD:
+        break;
+      case REG_TIMER_CONTROL:
+        break;
+      case REG_INTERRUPT:
+        return cpu.interrupts_raised;
+      default:
+        break;
+      }
+    }
+
+    if ((HIGH_RAM_BASE <= addr) &&
+        (addr < HIGH_RAM_BASE + HIGH_RAM_SIZE)) {
       return cpu.highRam[addr - HIGH_RAM_BASE];
+    }
+
+    if (addr == REG_INTERRUPT_ENABLE) {
+      return cpu.interrupts_enabled;
     }
 
     if (MEM_WARN) {
@@ -78,13 +101,6 @@ void gb_ptr::write(uint8_t to_write) {
   {
     const uint16_t addr = val.addr;
 
-    if (MONITOR_LINK_PORT) {
-      if (addr == 0xff01) {
-        printf("%c", to_write);
-        fflush(stdout);
-      }
-    }
-
     // TODO: respect switchable RAM bank
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
@@ -98,15 +114,45 @@ void gb_ptr::write(uint8_t to_write) {
       return;
     }
 
-    if (HIGH_RAM_BASE <= addr) {
-      // Test addr against edge of high ram with a static assert to
-      // avoid -Wtautological-constant-out-of-range-compare complaining
-      static_assert(
-        std::numeric_limits< decltype(addr) >::max()
-        < (int) HIGH_RAM_BASE + (int) HIGH_RAM_SIZE,
-        "High ram should occupy the top of memory");
+    if ((IO_BASE <= addr) &&
+        (addr < IO_BASE + IO_SIZE)) {
+      switch (addr) {
+      case REG_JOYPAD:
+        break;
+      case REG_SERIAL_DATA:
+        if (MONITOR_LINK_PORT) {
+          printf("%c", to_write);
+          fflush(stdout);
+        }
+        break;
+      case REG_SERIAL_CONTROL:
+        break;
+      case REG_DIVIDER:
+        break;
+      case REG_TIMER_COUNT:
+        break;
+      case REG_TIMER_MOD:
+        break;
+      case REG_TIMER_CONTROL:
+        break;
+      case REG_INTERRUPT:
+        // COMPAT Are these masks correct? Unclear.
+        cpu.interrupts_raised = to_write & INT_ALL;
+        break;
+      default:
+        break;
+      }
+    }
+
+    if ((HIGH_RAM_BASE <= addr) &&
+        (addr < HIGH_RAM_BASE + HIGH_RAM_SIZE)) {
       cpu.highRam[addr - HIGH_RAM_BASE] = to_write;
       return;
+    }
+
+    if (addr == REG_INTERRUPT_ENABLE) {
+      // COMPAT Are these masks correct? Unclear.
+      cpu.interrupts_enabled = to_write & INT_ALL;
     }
 
     if (MEM_WARN) {
