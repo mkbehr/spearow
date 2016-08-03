@@ -47,13 +47,14 @@ uint8_t gb_ptr::read() {
       case REG_SERIAL_CONTROL:
         break;
       case REG_DIVIDER:
+        return cpu.fine_divider >> 8;
         break;
       case REG_TIMER_COUNT:
-        break;
+        return cpu.timer_count;
       case REG_TIMER_MOD:
-        break;
+        return cpu.timer_mod;
       case REG_TIMER_CONTROL:
-        break;
+        return cpu.timer_control;
       case REG_INTERRUPT:
         return cpu.interrupts_raised;
       default:
@@ -128,12 +129,16 @@ void gb_ptr::write(uint8_t to_write) {
       case REG_SERIAL_CONTROL:
         break;
       case REG_DIVIDER:
+        cpu.fine_divider = 0; // ignore given value
         break;
       case REG_TIMER_COUNT:
+        cpu.timer_count = to_write;
         break;
       case REG_TIMER_MOD:
+        cpu.timer_mod = to_write;
         break;
       case REG_TIMER_CONTROL:
+        cpu.timer_control = to_write;
         break;
       case REG_INTERRUPT:
         // COMPAT Are these masks correct? Unclear.

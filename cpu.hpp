@@ -26,6 +26,8 @@ typedef union register_pair {
   uint16_t full;
 } register_pair;
 
+const unsigned int CPU_CYCLES_PER_SECOND = 4194304;
+
 const unsigned int RAM_SIZE = 0x2000;
 const unsigned int HIGH_RAM_SIZE = 0x7f; // very top is IE register
 
@@ -49,6 +51,16 @@ const uint8_t INT_ALL = (INT_VBLANK |
                          INT_TIMER |
                          INT_SERIAL |
                          INT_JOYPAD);
+
+const int TIMER_PERIODS[4] = {
+  CPU_CYCLES_PER_SECOND / 4096, // 1024
+  CPU_CYCLES_PER_SECOND / 262144, // 16
+  CPU_CYCLES_PER_SECOND / 65536, // 64
+  CPU_CYCLES_PER_SECOND / 16384 // 256
+};
+const uint8_t TIMER_CONTROL_FREQ = 3;
+const uint8_t TIMER_CONTROL_ENABLE = 1<<2;
+
 
 const uint16_t INITIAL_SP = 0xfffe;
 const uint16_t INITIAL_PC = 0x0000;
@@ -123,9 +135,19 @@ public:
   uint8_t ram[RAM_SIZE];
   uint8_t highRam[HIGH_RAM_SIZE];
 
+  // interrupt state
   uint8_t interrupts_raised;
   uint8_t interrupts_enabled;
   bool interrupt_master_enable;
+
+  // timer/divider state
+  uint16_t fine_divider;
+  uint8_t timer_count;
+  uint8_t timer_mod;
+  uint8_t timer_control;
+
+  // halt state
+  bool halted;
 
   uint8_t stack_pop();
   void stack_push(uint8_t x);
@@ -134,7 +156,7 @@ public:
   void stack_push_16(uint16_t x);
 
   void stop(); // TODO
-  void halt(); // TODO
+  void halt();
 
   void disableInterrupts();
   void enableInterrupts();

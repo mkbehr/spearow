@@ -15,7 +15,10 @@ CPU::CPU()
   : af({.full=0}), bc({.full=0}), de({.full=0}), hl({.full=0}),
     sp(INITIAL_SP), pc(INITIAL_PC), next_pc(0),
     interrupts_raised(0),
-    interrupts_enabled(0), interrupt_master_enable(0)
+    interrupts_enabled(0), interrupt_master_enable(0),
+    fine_divider(0),
+    timer_count(0), timer_mod(0), timer_control(0),
+    halted(0)
 {
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
@@ -56,46 +59,99 @@ void CPU::loadRom(const char *filepath) {
 
 void CPU::tick() {
   // handle interrupts
-  if (interrupt_master_enable) {
+  if (interrupt_master_enable || halted) {
     uint8_t interrupts = interrupts_enabled & interrupts_raised & INT_ALL;
     if (interrupts) {
-      printf("Handling interrupt\n");
-      uint8_t chosen_interrupt;
-      uint16_t addr;
-      if (interrupts & INT_VBLANK) {
-        chosen_interrupt = INT_VBLANK;
-        addr = INT_VBLANK_ADDR;
-      } else if (interrupts & INT_LCDC) {
-        chosen_interrupt = INT_LCDC;
-        addr = INT_LCDC_ADDR;
-      } else if (interrupts & INT_TIMER) {
-        chosen_interrupt = INT_TIMER;
-        addr = INT_TIMER_ADDR;
-      } else if (interrupts & INT_SERIAL) {
-        chosen_interrupt = INT_SERIAL;
-        addr = INT_SERIAL_ADDR;
+      // However, if we are halted but the interrupt master enable
+      // flag is unset, then we're not going to actually interrupt.
+      if (halted && !interrupt_master_enable) {
+        // COMPAT: Unclear: in this case, do we clear the
+        // corresponding bit in the interrupts_raised register or not?
+        // I guess the test suite suggests that we shouldn't?
+
+        // COMPAT: On anything but a gameboy color, this case should
+        // cause us to skip advancing the program counter on the next
+        // instruction fetch.
+        halted = 0;
       } else {
-        assert(interrupts & INT_JOYPAD);
-        chosen_interrupt = INT_JOYPAD;
-        addr = INT_JOYPAD_ADDR;
+        // unhalt if we were halted
+        halted = 0;
+
+        // now do the interrupt
+        uint8_t chosen_interrupt;
+        uint16_t addr;
+        if (interrupts & INT_VBLANK) {
+          chosen_interrupt = INT_VBLANK;
+          addr = INT_VBLANK_ADDR;
+        } else if (interrupts & INT_LCDC) {
+          chosen_interrupt = INT_LCDC;
+          addr = INT_LCDC_ADDR;
+        } else if (interrupts & INT_TIMER) {
+          chosen_interrupt = INT_TIMER;
+          addr = INT_TIMER_ADDR;
+        } else if (interrupts & INT_SERIAL) {
+          chosen_interrupt = INT_SERIAL;
+          addr = INT_SERIAL_ADDR;
+        } else {
+          assert(interrupts & INT_JOYPAD);
+          chosen_interrupt = INT_JOYPAD;
+          addr = INT_JOYPAD_ADDR;
+        }
+        // Interrupt procedure:
+        // - unset corresponding bit in request register
+        // - unset master enable flag
+        // - push PC onto stack
+        // - jump to interrupt vector
+        interrupts_raised &= ~chosen_interrupt;
+        interrupt_master_enable = 0;
+        stack_push_16(pc);
+        pc = addr;
       }
-      // Interrupt procedure:
-      // - unset corresponding bit in request register
-      // - unset master enable flag
-      // - push PC onto stack
-      // - jump to interrupt vector
-      interrupts_raised &= ~chosen_interrupt;
-      interrupt_master_enable = 0;
-      stack_push_16(pc);
-      pc = addr;
     }
   }
 
-  uint8_t op_first = gb_mem_ptr(*this, pc).read();
-  next_pc = pc + OPCODE_LENGTHS[op_first];
-  int cyclesElapsed = operate(*this, gb_mem_ptr(*this, pc));
-  // The operation will change next_pc if necessary.
-  pc = next_pc;
+  int cyclesElapsed;
+  if (!halted) {
+    uint8_t op_first = gb_mem_ptr(*this, pc).read();
+    next_pc = pc + OPCODE_LENGTHS[op_first];
+    cyclesElapsed = operate(*this, gb_mem_ptr(*this, pc));
+    // The operation will change next_pc if necessary.
+    pc = next_pc;
+  } else {
+    cyclesElapsed = 1;
+  }
+
+  // Process timer and divider. See
+  // http://gbdev.gg8.se/wiki/articles/Timer_Obscure_Behaviour for
+  // details.
+  int clockCyclesElapsed = cyclesElapsed * 4;
+  uint16_t newDivider = fine_divider + clockCyclesElapsed;
+  // TODO: double-speed cpu checks bit 14 instead of bit 13
+  if ((fine_divider & (1<<13)) &&
+      ~(newDivider & (1<<13))) {
+    // TODO sound clock
+  }
+  if (timer_control & TIMER_CONTROL_ENABLE) {
+    // Timer is driven by a falling edge detector on one bit of
+    // fine_divider. Which bit that is depends on the lower two bits of
+    // the timer control.
+    int timer_bit = 3 + ((timer_control & TIMER_CONTROL_FREQ) * 2);
+    if ((fine_divider & (1<<timer_bit)) &&
+        ~(newDivider & (1<<timer_bit))) {
+      // Tick the timer.
+
+      // COMPAT this behavior isn't exact. The interrupt is actually set
+      // four clock-cycles later, and there's some unexpected behavior
+      // with certain write timings.
+
+      timer_count++;
+      if (!timer_count) {
+        timer_count = timer_mod;
+        interrupts_raised |= INT_TIMER;
+      }
+    }
+  }
+  fine_divider = newDivider;
 }
 
 void CPU::updateFlags(int z, int n, int h, int c) {
@@ -170,13 +226,12 @@ void CPU::stack_push_16(uint16_t x) {
 
 
 void CPU::stop() {
-  //fprintf(stderr, "Unimplemented feature: stop\n");
-  //exit(0);
+  fprintf(stderr, "Unimplemented feature: stop\n");
+  exit(0);
 }
 
 void CPU::halt() {
-  fprintf(stderr, "Unimplemented feature: halt\n");
-  exit(0);
+  halted = 1;
 }
 
 void CPU::enableInterrupts() {
