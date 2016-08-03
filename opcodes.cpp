@@ -467,7 +467,6 @@ int operate(CPU &cpu, gb_ptr op) {
                  // the value of A represents the BCD result. 1 cycle.
                  // Flags Z, H, and C modified.
       {
-        int newFlagC = 0;
         int result = cpu.af.high;
         if (cpu.af.low & FLAG_N) {
           // adjust for subtraction
