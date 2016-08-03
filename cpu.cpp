@@ -18,7 +18,8 @@ CPU::CPU()
     interrupts_enabled(0), interrupt_master_enable(0),
     fine_divider(0),
     timer_count(0), timer_mod(0), timer_control(0),
-    halted(0)
+    halted(0),
+    rom_bank_low(1), ram_bank(0), mbc_mode(0)
 {
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
@@ -55,6 +56,8 @@ void CPU::loadRom(const char *filepath) {
   r->assign(std::istreambuf_iterator<char>(romFile),
             std::istreambuf_iterator<char>());
   romFile.close();
+
+  cartridge_type = rom.at(CART_TYPE_ADDR);
 }
 
 void CPU::tick() {
@@ -226,8 +229,8 @@ void CPU::stack_push_16(uint16_t x) {
 
 
 void CPU::stop() {
-  fprintf(stderr, "Unimplemented feature: stop\n");
-  exit(0);
+  // fprintf(stderr, "Unimplemented feature: stop\n");
+  // exit(0);
 }
 
 void CPU::halt() {

@@ -61,6 +61,7 @@ const int TIMER_PERIODS[4] = {
 const uint8_t TIMER_CONTROL_FREQ = 3;
 const uint8_t TIMER_CONTROL_ENABLE = 1<<2;
 
+const uint16_t CART_TYPE_ADDR = 0x0147;
 
 const uint16_t INITIAL_SP = 0xfffe;
 const uint16_t INITIAL_PC = 0x0000;
@@ -134,6 +135,14 @@ public:
 
   uint8_t ram[RAM_SIZE];
   uint8_t highRam[HIGH_RAM_SIZE];
+
+  uint8_t cartridge_type;
+
+  // MBC state.
+  // TODO: find a better place to store MBC-specific state
+  int rom_bank_low;
+  int ram_bank; // or rom bank high
+  int mbc_mode; // TODO make an enum
 
   // interrupt state
   uint8_t interrupts_raised;

@@ -60,6 +60,17 @@ const uint16_t REG_OBJ_PALETTE_1 = 0xff49; // R/W; OBP1
 const uint16_t REG_WINDOW_Y = 0xff4a; // R/W; WY
 const uint16_t REG_WINDOW_X = 0xff4b; // R/W; WX
 
+enum mbc_type {
+  MBC_NONE,
+  MBC_1,
+  MBC_2,
+  MBC_3,
+  MBC_4,
+  MBC_5,
+  MBC_HUC1,
+  MBC_UNKNOWN
+};
+
 enum gb_ptr_type {
   GB_PTR_MEM,
   GB_PTR_REG,
@@ -110,5 +121,9 @@ gb_ptr gb_mem_ptr(CPU &, uint16_t);
 gb_ptr gb_reg_ptr(CPU &, uint8_t *);
 gb_ptr_16 gb_mem16_ptr(CPU &, uint16_t);
 gb_ptr_16 gb_reg16_ptr(CPU &, uint16_t *);
+
+mbc_type cart_mbc_type(CPU &);
+int rom_bank_offset(CPU &);
+
 
 #endif // $ifndef MEM_H

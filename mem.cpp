@@ -4,6 +4,78 @@
 
 #include "mem.hpp"
 
+// TODO cache this or make it const or something
+mbc_type cart_mbc_type(CPU &cpu) {
+  switch (cpu.cartridge_type) {
+  case 0:
+    return MBC_NONE;
+  case 1:
+  case 2:
+  case 3:
+    return MBC_1;
+  case 5:
+  case 6:
+    return MBC_2;
+  case 8:
+  case 9:
+    return MBC_NONE;
+  case 0xb:
+  case 0xc:
+  case 0xd:
+    // MMM01
+    return MBC_UNKNOWN;
+  case 0xf:
+  case 0x10:
+  case 0x11:
+  case 0x12:
+  case 0x13:
+    return MBC_3;
+  case 0x15:
+  case 0x16:
+  case 0x17:
+    return MBC_4;
+  case 0x19:
+  case 0x1a:
+  case 0x1b:
+  case 0x1c:
+  case 0x1d:
+  case 0x1e:
+    return MBC_5;
+  case 0xfc: // pocket camera
+  case 0xfd: // bandai tama5
+  case 0xfe: // HuC3
+    return MBC_UNKNOWN;
+  case 0xff:
+    return MBC_HUC1;
+  default:
+    return MBC_UNKNOWN;
+  }
+}
+
+int rom_bank_offset(CPU &cpu) {
+  switch (cart_mbc_type(cpu)) {
+  case MBC_NONE:
+    return 1 * ROM_BANK_SIZE;
+  case MBC_1:
+  {
+    int rbl = cpu.rom_bank_low;
+    if (rbl == 0) {
+      rbl = 1;
+    }
+    if (cpu.mbc_mode == 0) {
+      // ROM select mode
+      return (rbl + ((cpu.ram_bank & 0x3) << 5)) * ROM_BANK_SIZE;
+    } else {
+      // RAM select mode
+      return rbl * ROM_BANK_SIZE;
+    }
+  }
+  default:
+    // TODO
+    return 0;
+  }
+}
+
 // BEGIN GB_PTR
 
 gb_ptr::gb_ptr(CPU &c, const gb_ptr_type t, const gb_ptr_val v)
@@ -19,14 +91,18 @@ uint8_t gb_ptr::read() {
   case GB_PTR_MEM:
   {
     const uint16_t addr = val.addr;
-    // TODO: respect switchable ROM bank
+
     if ((ROM_BASE <= addr) &&
-        (addr < ROM_SWITCHABLE_BASE + ROM_BANK_SIZE)) {
+        (addr < ROM_BASE + ROM_BANK_SIZE)) {
 
       return cpu.rom.at(addr - ROM_BASE);
     }
 
-    // TODO: respect switchable RAM bank
+    if ((ROM_SWITCHABLE_BASE <= addr) &&
+        (addr < ROM_SWITCHABLE_BASE + ROM_BANK_SIZE)) {
+      return cpu.rom.at(addr - ROM_SWITCHABLE_BASE + rom_bank_offset(cpu));
+    }
+
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
       return cpu.ram[addr - RAM_BASE];
@@ -34,7 +110,15 @@ uint8_t gb_ptr::read() {
 
     if ((RAM_ECHO_BASE <= addr) &&
         (addr <= RAM_ECHO_TOP)) {
-      return cpu.ram[addr - RAM_ECHO_BASE];
+      switch (cart_mbc_type(cpu)) {
+      case MBC_NONE:
+        return cpu.ram[addr - RAM_ECHO_BASE];
+      case MBC_1:// TODO implement external ram
+        //return externalram[addr - RAM_ECHO_BASE + ram_echo_offset(cpu)];
+        break;
+      default:
+        break;
+      }
     }
 
     if ((IO_BASE <= addr) &&
@@ -102,6 +186,7 @@ void gb_ptr::write(uint8_t to_write) {
   {
     const uint16_t addr = val.addr;
 
+
     // TODO: respect switchable RAM bank
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
@@ -111,9 +196,18 @@ void gb_ptr::write(uint8_t to_write) {
 
     if ((RAM_ECHO_BASE <= addr) &&
         (addr <= RAM_ECHO_TOP)) {
-      cpu.ram[addr - RAM_ECHO_BASE] = to_write;
-      return;
+      switch (cart_mbc_type(cpu)) {
+      case MBC_NONE:
+        cpu.ram[addr - RAM_ECHO_BASE] = to_write;
+        return;
+      case MBC_1:// TODO implement external ram
+        //return externalram[addr - RAM_ECHO_BASE + ram_echo_offset(cpu)];
+        break;
+      default:
+        break;
+      }
     }
+
 
     if ((IO_BASE <= addr) &&
         (addr < IO_BASE + IO_SIZE)) {
@@ -158,6 +252,33 @@ void gb_ptr::write(uint8_t to_write) {
     if (addr == REG_INTERRUPT_ENABLE) {
       // COMPAT Are these masks correct? Unclear.
       cpu.interrupts_enabled = to_write & INT_ALL;
+    }
+
+    switch (cart_mbc_type(cpu)) {
+    case MBC_NONE:
+      break;
+    case MBC_1:
+      if (addr < 0x2000) {
+        // RAM enable
+        fprintf(stderr, "Ignoring write to RAM enable\n");
+      } else if (addr < 0x4000) {
+        // ROM bank lower bits
+        to_write = to_write & 0x1f;
+        if (!to_write) {
+          to_write = 1;
+        }
+        cpu.rom_bank_low = to_write;
+        return;
+      } else if (addr < 0x6000) {
+        // ROM bank upper bits or RAM bank
+        cpu.ram_bank = to_write & 0x03;
+      } else if (addr < 0x8000){
+        cpu.mbc_mode = to_write & 1;
+      }
+      break;
+    default:
+      // TODO other MBCs
+      break;
     }
 
     if (MEM_WARN) {
