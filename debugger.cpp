@@ -195,6 +195,56 @@ void cmd_tilea(CPU &cpu, stringstream &cmdstream) {
   }
 }
 
+void cmd_ascii_screen(CPU &cpu, stringstream &cmdstream) {
+  // Testing out some rendering code here before I move it elsewhere.
+
+  // For testing purposes, REG_LCD_CONTROL stores 0x91, so:
+  // BG on
+  // Sprites off
+  // Sprites 8x8
+  // BG code starts at 0x9800
+  // BG tiles start at 0x8000
+  // Window off
+  // Window code starts at 0x9800
+  // Screen on
+  for (int y = 0; y < 144; y++) {
+    int tileY = y / 8;
+    for (int x = 0; x < 160; x++) {
+      int tileX = x / 8;
+      int block = tileY * 32 + tileX;
+
+      uint16_t bg_base = 0x9800; // TODO confirm
+      uint8_t tile_n = gb_mem_ptr(cpu, bg_base + block).read();
+
+      uint16_t tile_base = 0x8000;
+
+      uint16_t tile_addr = tile_base + tile_n * 16;
+
+      uint8_t low_byte = gb_mem_ptr(cpu, tile_addr + (y%8)*2).read();
+      uint8_t high_byte = gb_mem_ptr(cpu, tile_addr + (y%8)*2 + 1).read();
+
+      int out = 0;
+      if (low_byte & (1<<(7-(x%8)))) {
+        out += 1;
+      }
+      if (high_byte & (1<<(7-(x%8)))) {
+        out += 2;
+      }
+      if (out) {
+        cout << out;
+      } else {
+        cout << '.';
+      }
+    }
+    cout << "\n";
+  }
+  cout << "\n";
+}
+
+void cmd_draw(CPU &cpu, stringstream &cmdstream) {
+  cpu.screen->draw();
+}
+
 const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"state", cmd_state},
   {"read", cmd_read},
@@ -211,6 +261,8 @@ const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"shutdown", cmd_shutdown},
   {"sd", cmd_shutdown},
   {"tilea", cmd_tilea},
+  {"screen", cmd_ascii_screen},
+  {"draw", cmd_draw},
 };
 
 void run_debugger(CPU &cpu) {

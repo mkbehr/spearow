@@ -15,6 +15,18 @@ if (CMAKE_BUILD_TYPE MATCHES DEBUG)
   add_compile_options("-g")
 endif()
 
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GLFW REQUIRED glfw3)
+
+find_library(Cocoa_FRAMEWORK Cocoa)
+find_library(OpenGL_FRAMEWORK OpenGL)
+find_library(IOKit_FRAMEWORK IOKit)
+find_library(CoreFoundation_FRAMEWORK CoreFoundation)
+find_library(CoreVideo_FRAMEWORK CoreVideo)
+
+include_directories(SYSTEM ${GLFW_INCLUDE_DIRS})
+link_directories("${GLFW_LIBRARY_DIRS}")
+
 add_library(mem mem.cpp)
 
 add_library(cpu cpu.cpp)
@@ -23,6 +35,26 @@ add_library(opcodes opcodes.cpp)
 
 add_library(debugger debugger.cpp)
 
-add_executable(cpu-test cpu-test.cpp cpu opcodes mem)
+add_library(screen screen.cpp)
+target_link_libraries(screen
+  ${GLFW_LIBRARIES}
+  ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
+  ${IOKit_FRAMEWORK} ${CoreFoundation_FRAMEWORK}
+  ${CoreVideo_FRAMEWORK}
+  )
 
-add_executable(spearow spearow.cpp cpu opcodes mem debugger)
+add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen)
+target_link_libraries(cpu-test
+  ${GLFW_LIBRARIES}
+  ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
+  ${IOKit_FRAMEWORK} ${CoreFoundation_FRAMEWORK}
+  ${CoreVideo_FRAMEWORK}
+  )
+
+add_executable(spearow spearow.cpp cpu opcodes mem debugger screen)
+target_link_libraries(spearow
+  ${GLFW_LIBRARIES}
+  ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
+  ${IOKit_FRAMEWORK} ${CoreFoundation_FRAMEWORK}
+  ${CoreVideo_FRAMEWORK}
+  )

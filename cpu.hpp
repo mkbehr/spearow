@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "screen.hpp"
+
 #ifndef __BYTE_ORDER__
 #error Unknown byte order. Set __BYTE_ORDER__ to the appropriate value.
 #endif
@@ -112,6 +114,8 @@ const uint8_t POSTLOGO_IOREG_INIT[128] =
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+class Screen;
+
 class CPU {
 public:
   CPU();
@@ -159,6 +163,8 @@ public:
 
   // halt state
   bool halted;
+
+  Screen *screen;
 
   uint8_t stack_pop();
   void stack_push(uint8_t x);

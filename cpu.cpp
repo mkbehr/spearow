@@ -19,7 +19,8 @@ CPU::CPU()
     fine_divider(0),
     timer_count(0), timer_mod(0), timer_control(0),
     halted(0),
-    rom_bank_low(1), ram_bank(0), mbc_mode(0)
+    rom_bank_low(1), ram_bank(0), mbc_mode(0),
+    screen(new Screen(this))
 {
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
