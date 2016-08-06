@@ -23,6 +23,13 @@ const int SCREEN_HEIGHT = 144;
 // enough for... 2 cycles per column makes 320 total, with 136 left
 // over?
 
+// A random file on the internet ("GameBoy CPU Timing v0.01") confirms
+// 456 cycles per line and claims 70224 cycles per frame. I'll go with
+// that. Both numbers are doubled in the GBC's double-speed mode. The
+// super gameboy has slightly increased CPU speed and
+// correspondingly-increased sync speeds - presumably they're the same
+// number of cycles.
+
 // REG_LCD_CONTROL (LCDC) has 8 flags.
 // Bit 0: BG display (ignored in GBC)
 // Bit 1: Sprite display

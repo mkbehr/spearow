@@ -20,6 +20,7 @@ CPU::CPU()
     timer_count(0), timer_mod(0), timer_control(0),
     halted(0),
     rom_bank_low(1), ram_bank(0), mbc_mode(0),
+    cycles_to_next_frame(CPU_CYCLES_PER_FRAME),
     screen(new Screen(this))
 {
   memset(ram, 0, sizeof(ram));
@@ -156,6 +157,14 @@ void CPU::tick() {
     }
   }
   fine_divider = newDivider;
+
+  // Also process frame timing. This will have to be much more
+  // sophisticated eventually, but this'll work for now.
+  cycles_to_next_frame -= clockCyclesElapsed;
+  if (cycles_to_next_frame <= 0) {
+    screen->draw();
+    cycles_to_next_frame += CPU_CYCLES_PER_FRAME;
+  }
 }
 
 void CPU::updateFlags(int z, int n, int h, int c) {

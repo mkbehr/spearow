@@ -30,6 +30,10 @@ typedef union register_pair {
 
 const unsigned int CPU_CYCLES_PER_SECOND = 4194304;
 
+// See screen.hpp for notes on this timing.
+const unsigned int CPU_CYCLES_PER_FRAME = 70224;
+const unsigned int CPU_CYCLES_PER_SCANLINE = 456;
+
 const unsigned int RAM_SIZE = 0x2000;
 const unsigned int HIGH_RAM_SIZE = 0x7f; // very top is IE register
 const unsigned int VRAM_SIZE = 0x2000;
@@ -182,6 +186,8 @@ public:
 
 private:
   void postLogoSetup();
+
+  int cycles_to_next_frame;
 };
 
 #endif // #ifndef CPU_H
