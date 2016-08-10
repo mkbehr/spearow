@@ -15,6 +15,11 @@ if (CMAKE_BUILD_TYPE MATCHES DEBUG)
   add_compile_options("-g")
 endif()
 
+# TODO make this less platform-specific, limit gperftools linking to
+# debug build
+set(GPERFTOOLS_LIBRARY_DIRS "/usr/local/lib")
+set(GPERFTOOLS_PROFILER "profiler")
+
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
 
@@ -25,7 +30,7 @@ find_library(CoreFoundation_FRAMEWORK CoreFoundation)
 find_library(CoreVideo_FRAMEWORK CoreVideo)
 
 include_directories(SYSTEM ${GLFW_INCLUDE_DIRS})
-link_directories("${GLFW_LIBRARY_DIRS}")
+link_directories("${GLFW_LIBRARY_DIRS}" "${GPERFTOOLS_LIBRARY_DIRS}")
 
 add_library(mem mem.cpp)
 
@@ -56,5 +61,5 @@ target_link_libraries(spearow
   ${GLFW_LIBRARIES}
   ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
   ${IOKit_FRAMEWORK} ${CoreFoundation_FRAMEWORK}
-  ${CoreVideo_FRAMEWORK}
+  ${CoreVideo_FRAMEWORK} ${GPERFTOOLS_PROFILER}
   )
