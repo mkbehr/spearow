@@ -43,7 +43,7 @@ target_link_libraries(screen
   ${CoreVideo_FRAMEWORK}
   )
 
-add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen)
+add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen debugger)
 target_link_libraries(cpu-test
   ${GLFW_LIBRARIES}
   ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}

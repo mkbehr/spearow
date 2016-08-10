@@ -1,4 +1,5 @@
 #include <cassert>
+#include <csignal>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -8,6 +9,7 @@
 #include <limits>
 
 #include "cpu.hpp"
+#include "debugger.hpp"
 #include "mem.hpp"
 #include "opcodes.hpp"
 
@@ -23,6 +25,8 @@ CPU::CPU()
     cycles_to_next_frame(CPU_CYCLES_PER_FRAME),
     screen(new Screen(this))
 {
+  install_sigint();
+
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
 
@@ -31,6 +35,33 @@ CPU::CPU()
 
   // TODO: emulate the logo/chime program.
   postLogoSetup();
+}
+
+CPU::~CPU() {
+  // restore the SIGINT handler to its old behavior
+  uninstall_sigint();
+}
+
+bool CPU::debuggerRequested;
+struct sigaction CPU::oldsigint;
+
+void CPU::install_sigint() {
+  const struct sigaction act =
+    {.sa_handler = this->handle_sigint,
+     .sa_mask = 0,
+     .sa_flags = 0};
+  sigaction(SIGINT, &act, &oldsigint);
+  assert(oldsigint.sa_handler != this->handle_sigint);
+}
+
+void CPU::uninstall_sigint() {
+  struct sigaction cpu_sigint;
+  sigaction(SIGINT, &oldsigint, &cpu_sigint);
+}
+
+void CPU::handle_sigint(int signum) {
+  debuggerRequested = 1;
+  uninstall_sigint();
 }
 
 void CPU::postLogoSetup() {
@@ -164,6 +195,18 @@ void CPU::tick() {
   if (cycles_to_next_frame <= 0) {
     screen->draw();
     cycles_to_next_frame += CPU_CYCLES_PER_FRAME;
+  }
+
+  // Now break into the debugger, if requested
+
+  // FIXME: this'll currently let us recursively enter the debugger,
+  // which is kind of weird. fix that logic.
+  if (debuggerRequested) {
+    debuggerRequested = 0;
+    run_debugger(*this);
+    // once we're out of the debugger, we can reinstall our SIGINT
+    // handler.
+    install_sigint();
   }
 }
 

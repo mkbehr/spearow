@@ -123,6 +123,7 @@ class Screen;
 class CPU {
 public:
   CPU();
+  ~CPU();
 
   void printState();
   void printFlags(uint8_t);
@@ -184,10 +185,21 @@ public:
 
   std::vector<uint8_t> rom;
 
+  // These have to be static to work with the signal handlers. This
+  // will interact strangely if there are ever multiple CPUs.
+  static bool debuggerRequested;
+  static void handle_sigint(int);
+
 private:
   void postLogoSetup();
 
   int cycles_to_next_frame;
+
+  void install_sigint();
+  static void uninstall_sigint();
+
+  // old SIGINT action handler
+  static struct sigaction oldsigint;
 };
 
 #endif // #ifndef CPU_H
