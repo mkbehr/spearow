@@ -52,6 +52,19 @@ void cmd_state(CPU &cpu, stringstream &cmdstream) {
   cpu.printState();
 }
 
+void cmd_interrupts(CPU &cpu, stringstream &cmdstream) {
+  cout << "Interrupts "
+       << (cpu.interrupt_master_enable ? "enabled" : "disabled")
+       << "\n";
+  cout << "Enabled interrupts:   "
+       << hex << setw(2) << setfill('0') << (int) cpu.interrupts_enabled
+       << "\n";
+  cout << "Requested interrupts: "
+       << hex << setw(2) << setfill('0') << (int) cpu.interrupts_raised
+       << "\n";
+  printf("%02x %02x\n", cpu.interrupts_enabled, cpu.interrupts_raised);
+}
+
 void cmd_read(CPU &cpu, stringstream &cmdstream) {
   // Read as hex by default
   uint16_t addr;
@@ -362,6 +375,7 @@ const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"screen", cmd_ascii_screen},
   {"draw", cmd_draw},
   {"disassemble_fun", cmd_disasssemble_fun},
+  {"interrupts", cmd_interrupts},
 };
 
 void run_debugger(CPU &cpu) {
