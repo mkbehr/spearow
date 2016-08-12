@@ -200,11 +200,6 @@ void cmd_clear(CPU &cpu, stringstream &cmdstream) {
   if (!read_addr(cmdstream, addr)) {
     return;
   }
-  cmdstream >> hex >> addr;
-  if (!cmdstream) {
-    printf("Couldn't read address\n");
-    return;
-  }
   if ((addr < 0) || (addr > 0xffff)) {
     printf("Bad address %x\n", addr);
     return;
