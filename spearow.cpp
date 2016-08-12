@@ -6,6 +6,8 @@
 #include <algorithm> // std::sort
 #include <numeric> // std::iota
 
+#include <getopt.h> // getopt_long
+
 #include "cpu.hpp"
 #include "mem.hpp"
 #include "opcodes.hpp"
@@ -63,11 +65,33 @@ void printInstrCountTable() {
 }
 
 int main(int argc, char **argv) {
-  CPU cpu;
-  assert(argc > 1);
-  cpu.loadRom(argv[1]);
+  int debug = 0;
 
-  run_debugger(cpu);
+  static struct option opts[] = {
+    {"debug", no_argument, &debug, 1},
+  };
+
+
+  int c;
+  while ((c = getopt_long(argc, argv, "f:", opts, NULL)) != -1) {
+    switch (c) {
+    case 0:
+      break;
+    case '?':
+    default:
+      abort();
+    }
+  }
+
+  char *rompath = argv[optind+0];
+
+  CPU cpu;
+  cpu.loadRom(rompath);
+
+  if (debug) {
+    cpu.uninstall_sigint();
+    run_debugger(cpu);
+  }
 
   while (1) {
     cpu.tick();
