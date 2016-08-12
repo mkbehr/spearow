@@ -13,24 +13,6 @@
 #include "opcodes.hpp"
 #include "debugger.hpp"
 
-void disassembleFunction(CPU &cpu, uint16_t addr) {
-  uint8_t op_first;
-  const char *opcode_name;
-  do {
-    op_first = gb_mem_ptr(cpu, addr).read();
-    opcode_name = op_first == 0xcb ?
-      CB_OPCODE_NAMES[(gb_mem_ptr(cpu, addr+1)).read()] :
-      OPCODE_NAMES[op_first];
-    printf("%04x: %s: %02x", addr, opcode_name, op_first);
-    for (int i = 0; i < OPCODE_LENGTHS[op_first] - 1; i++) {
-      uint8_t arg = gb_mem_ptr(cpu, addr+i+1).read();
-      printf(" %02x", arg);
-    }
-    printf("\n");
-    addr += OPCODE_LENGTHS[op_first];
-  } while (strncmp(opcode_name, "RET", 3) != 0);
-}
-
 void runFiniteInstrs(CPU &cpu,
                      unsigned long long instrs,
                      int printStateEvery) {

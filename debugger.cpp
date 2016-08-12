@@ -22,6 +22,7 @@
 
 #include "debugger.hpp"
 #include "cpu.hpp"
+#include "opcodes.hpp"
 #include "mem.hpp"
 
 using namespace std;
@@ -312,6 +313,35 @@ void cmd_draw(CPU &cpu, stringstream &cmdstream) {
   cpu.screen->draw();
 }
 
+void cmd_disasssemble_fun(CPU &cpu, stringstream &cmdstream) {
+  uint16_t addr;
+  if (!read_addr(cmdstream, addr)) {
+    return;
+  }
+
+  uint8_t op_first;
+  const char *opcode_name;
+  do {
+    op_first = gb_mem_ptr(cpu, addr).read();
+    opcode_name = op_first == 0xcb ?
+      CB_OPCODE_NAMES[(gb_mem_ptr(cpu, addr+1)).read()] :
+      OPCODE_NAMES[op_first];
+    printf("%04x: %s: %02x", addr, opcode_name, op_first);
+    for (int i = 0; i < OPCODE_LENGTHS[op_first] - 1; i++) {
+      uint8_t arg = gb_mem_ptr(cpu, addr+i+1).read();
+      printf(" %02x", arg);
+    }
+    printf("\n");
+    addr += OPCODE_LENGTHS[op_first];
+    // stop on return, absolute jump, or reset
+    // (will miss interrupts triggered by writing to the interrupt register)
+  } while ((strncmp(opcode_name, "RET", 3) != 0) &&
+           (strncmp(opcode_name, "JR", 2) != 0) &&
+           (strncmp(opcode_name, "JP", 2) != 0) &&
+           (strncmp(opcode_name, "RST", 2) != 0) &&
+           (OPCODE_LENGTHS[op_first] != 0));
+}
+
 const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"state", cmd_state},
   {"read", cmd_read},
@@ -331,6 +361,7 @@ const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"tilea", cmd_tilea},
   {"screen", cmd_ascii_screen},
   {"draw", cmd_draw},
+  {"disassemble_fun", cmd_disasssemble_fun},
 };
 
 void run_debugger(CPU &cpu) {
