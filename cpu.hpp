@@ -211,6 +211,7 @@ private:
   void postLogoSetup();
 
   int cycles_to_next_frame;
+  int cycles_to_next_scanline;
 
   void handleInterrupts();
   int load_op_and_execute();

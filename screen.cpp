@@ -101,10 +101,10 @@ Screen::Screen(CPU *c)
 }
 
 void Screen::draw() {
-  const uint16_t bg_base = (lcd_control & LCDC_BG_CODE)
+  const uint16_t bg_base = (cpu->lcd_control & LCDC_BG_CODE)
     ? 0x9c00 : 0x9800;
   const uint16_t tile_base = 0x8000;
-  const bool tile_signed = !!(lcd_control & LCDC_BG_CHR);
+  const bool tile_signed = !!(cpu->lcd_control & LCDC_BG_CHR);
 
   // start slow, make it work
 

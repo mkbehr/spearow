@@ -15,6 +15,7 @@ extern const char *FRAGMENT_SHADER_FILE;
 
 const int SCREEN_WIDTH = 160;
 const int SCREEN_HEIGHT = 144;
+const int VBLANK_HEIGHT = 10;
 
 // There are 160 columns and 144 scanlines, as well as a 10-line
 // vblank period. Every line takes 108.7 microseconds. At a CPU
@@ -72,7 +73,6 @@ class CPU;
 class Screen {
 public:
   Screen(CPU *c);
-  uint8_t lcd_control;
   void draw();
 private:
   GLFWwindow *window;

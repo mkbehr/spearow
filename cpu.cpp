@@ -23,6 +23,7 @@ CPU::CPU()
     halted(0),
     rom_bank_low(1), ram_bank(0), mbc_mode(0),
     cycles_to_next_frame(CPU_CYCLES_PER_FRAME),
+    cycles_to_next_scanline(CPU_CYCLES_PER_SCANLINE),
     screen(new Screen(this))
 {
   install_sigint();
@@ -195,12 +196,17 @@ void CPU::display_tick(int cyclesElapsed) {
   int clockCyclesElapsed = cyclesElapsed * 4;
   // Also process frame timing. This will have to be much more
   // sophisticated eventually, but this'll work for now.
+  cycles_to_next_scanline -= clockCyclesElapsed;
+  if (cycles_to_next_scanline <= 0) {
+    lcd_y = (lcd_y + 1) % (SCREEN_HEIGHT + VBLANK_HEIGHT);
+    cycles_to_next_scanline += CPU_CYCLES_PER_SCANLINE;
+  }
+  // TODO compare lcd_y with lcd_y_compare
   cycles_to_next_frame -= clockCyclesElapsed;
   if (cycles_to_next_frame <= 0) {
     screen->draw();
     cycles_to_next_frame += CPU_CYCLES_PER_FRAME;
   }
-
 }
 
 void CPU::tick() {
@@ -222,6 +228,7 @@ void CPU::tick() {
   // which is kind of weird. fix that logic.
   if (debuggerRequested) {
     debuggerRequested = 0;
+    printf("\n");
     run_debugger(*this);
     // once we're out of the debugger, we can reinstall our SIGINT
     // handler.
