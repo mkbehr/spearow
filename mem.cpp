@@ -131,6 +131,7 @@ uint8_t gb_ptr::read() {
     if ((IO_BASE <= addr) &&
         (addr < IO_BASE + IO_SIZE)) {
       switch (addr) {
+        // misc
       case REG_JOYPAD:
         break;
       case REG_SERIAL_DATA:
@@ -148,6 +149,32 @@ uint8_t gb_ptr::read() {
         return cpu.timer_control;
       case REG_INTERRUPT:
         return cpu.interrupts_raised;
+        // TODO sound
+        // display
+      case REG_LCD_CONTROL:
+        return cpu.lcd_control;
+      case REG_LCD_STATUS:
+        return cpu.lcd_status;
+      case REG_SCROLL_Y:
+        return cpu.scroll_y;
+      case REG_SCROLL_X:
+        return cpu.scroll_x;
+      case REG_LCD_Y:
+        return cpu.lcd_y;
+      case REG_LCD_Y_COMPARE:
+        return cpu.lcd_y_compare;
+      case REG_DMA: // write-only
+        return 0;
+      case REG_BG_PALETTE:
+        return cpu.bg_palette;
+      case REG_OBJ_PALETTE_0:
+        return cpu.obj_palette_0;
+      case REG_OBJ_PALETTE_1:
+        return cpu.obj_palette_1;
+      case REG_WINDOW_Y:
+        return cpu.window_y;
+      case REG_WINDOW_X:
+        return cpu.window_x;
       default:
         break;
       }
@@ -251,8 +278,41 @@ void gb_ptr::write(uint8_t to_write) {
         cpu.interrupts_raised = to_write & INT_ALL;
         break;
       // Video registers
+      // COMPAT Are any of these masked?
       case REG_LCD_CONTROL:
-        printf("Write %02x to REG_LCD_CONTROL\n", to_write);
+        cpu.lcd_control = to_write;
+        break;
+      case REG_LCD_STATUS:
+        cpu.lcd_status = to_write;
+        break;
+      case REG_SCROLL_Y:
+        cpu.scroll_y = to_write;
+        break;
+      case REG_SCROLL_X:
+        cpu.scroll_x = to_write;
+        break;
+      case REG_LCD_Y: // read-only
+        break;
+      case REG_LCD_Y_COMPARE:
+        cpu.lcd_y_compare = to_write;
+        break;
+      case REG_DMA:
+        // TODO
+        break;
+      case REG_BG_PALETTE:
+        cpu.bg_palette = to_write;
+        break;
+      case REG_OBJ_PALETTE_0:
+        cpu.obj_palette_0 = to_write;
+        break;
+      case REG_OBJ_PALETTE_1:
+        cpu.obj_palette_1 = to_write;
+        break;
+      case REG_WINDOW_Y:
+        cpu.window_y = to_write;
+        break;
+      case REG_WINDOW_X:
+        cpu.window_x = to_write;
         break;
       default:
         break;

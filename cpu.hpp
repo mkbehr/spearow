@@ -166,6 +166,19 @@ public:
   uint8_t timer_mod;
   uint8_t timer_control;
 
+  // display registers
+  uint8_t lcd_control;
+  uint8_t lcd_status;
+  uint8_t scroll_y;
+  uint8_t scroll_x;
+  uint8_t lcd_y;
+  uint8_t lcd_y_compare;
+  uint8_t bg_palette;
+  uint8_t obj_palette_0;
+  uint8_t obj_palette_1;
+  uint8_t window_y;
+  uint8_t window_x;
+
   // halt state
   bool halted;
 
