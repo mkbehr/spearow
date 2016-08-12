@@ -95,7 +95,7 @@ void CPU::loadRom(const char *filepath) {
 }
 
 void CPU::handleInterrupts() {
-    // handle interrupts
+  // handle interrupts
   if (interrupt_master_enable || halted) {
     uint8_t interrupts = interrupts_enabled & interrupts_raised & INT_ALL;
     if (interrupts) {
@@ -200,6 +200,14 @@ void CPU::display_tick(int cyclesElapsed) {
   if (cycles_to_next_scanline <= 0) {
     lcd_y = (lcd_y + 1) % (SCREEN_HEIGHT + VBLANK_HEIGHT);
     cycles_to_next_scanline += CPU_CYCLES_PER_SCANLINE;
+    if (lcd_y >= SCREEN_HEIGHT) {
+      // we have started vblank; request the vblank interrupt
+      interrupts_raised |= INT_VBLANK;
+    }
+    if (lcd_y == 0) {
+      // we're out of vblank; unrequest vblank interrupt
+      interrupts_raised &= ~INT_VBLANK;
+    }
   }
   // TODO compare lcd_y with lcd_y_compare
   cycles_to_next_frame -= clockCyclesElapsed;
