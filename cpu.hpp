@@ -212,6 +212,11 @@ private:
 
   int cycles_to_next_frame;
 
+  void handleInterrupts();
+  int load_op_and_execute();
+  void timer_tick(int cyclesElapsed);
+  void display_tick(int cyclesElapsed);
+
   // old SIGINT action handler
   static struct sigaction oldsigint;
 };

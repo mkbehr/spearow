@@ -93,8 +93,8 @@ void CPU::loadRom(const char *filepath) {
   cartridge_type = rom.at(CART_TYPE_ADDR);
 }
 
-void CPU::tick() {
-  // handle interrupts
+void CPU::handleInterrupts() {
+    // handle interrupts
   if (interrupt_master_enable || halted) {
     uint8_t interrupts = interrupts_enabled & interrupts_raised & INT_ALL;
     if (interrupts) {
@@ -145,18 +145,19 @@ void CPU::tick() {
       }
     }
   }
+}
 
+int CPU::load_op_and_execute() {
   int cyclesElapsed;
-  if (!halted) {
-    uint8_t op_first = gb_mem_ptr(*this, pc).read();
-    next_pc = pc + OPCODE_LENGTHS[op_first];
-    cyclesElapsed = operate(*this, gb_mem_ptr(*this, pc));
-    // The operation will change next_pc if necessary.
-    pc = next_pc;
-  } else {
-    cyclesElapsed = 1;
-  }
+  uint8_t op_first = gb_mem_ptr(*this, pc).read();
+  next_pc = pc + OPCODE_LENGTHS[op_first];
+  cyclesElapsed = operate(*this, gb_mem_ptr(*this, pc));
+  // The operation will change next_pc if necessary.
+  pc = next_pc;
+  return cyclesElapsed;
+}
 
+void CPU::timer_tick(int cyclesElapsed) {
   // Process timer and divider. See
   // http://gbdev.gg8.se/wiki/articles/Timer_Obscure_Behaviour for
   // details.
@@ -188,7 +189,10 @@ void CPU::tick() {
     }
   }
   fine_divider = newDivider;
+}
 
+void CPU::display_tick(int cyclesElapsed) {
+  int clockCyclesElapsed = cyclesElapsed * 4;
   // Also process frame timing. This will have to be much more
   // sophisticated eventually, but this'll work for now.
   cycles_to_next_frame -= clockCyclesElapsed;
@@ -196,6 +200,21 @@ void CPU::tick() {
     screen->draw();
     cycles_to_next_frame += CPU_CYCLES_PER_FRAME;
   }
+
+}
+
+void CPU::tick() {
+  handleInterrupts();
+  int cyclesElapsed;
+  if (!halted) {
+    cyclesElapsed = load_op_and_execute();
+  } else {
+    cyclesElapsed = 1;
+  }
+
+  timer_tick(cyclesElapsed);
+
+  display_tick(cyclesElapsed);
 
   // Now break into the debugger, if requested
 
