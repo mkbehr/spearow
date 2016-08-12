@@ -6,13 +6,13 @@ if(NOT CMAKE_BUILD_TYPE)
   #set(CMAKE_BUILD_TYPE "MINSIZEREL")
 endif()
 
-set(CMAKE_CXX_COMPILER g++)
+set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_STANDARD 14)
 
 add_compile_options("-O3" "-Wall")
 
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
-  add_compile_options("-g")
+  add_compile_options("-ggdb")
 endif()
 
 # TODO make this less platform-specific, limit gperftools linking to
