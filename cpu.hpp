@@ -190,13 +190,14 @@ public:
   static bool debuggerRequested;
   static void handle_sigint(int);
 
+  void install_sigint();
+  static void uninstall_sigint();
+
+
 private:
   void postLogoSetup();
 
   int cycles_to_next_frame;
-
-  void install_sigint();
-  static void uninstall_sigint();
 
   // old SIGINT action handler
   static struct sigaction oldsigint;

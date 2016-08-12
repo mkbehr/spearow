@@ -101,6 +101,76 @@ void cmd_write(CPU &cpu, stringstream &cmdstream) {
        << "\n";
 }
 
+void cmd_wreg(CPU &cpu, stringstream &cmdstream) {
+  string regname;
+  cmdstream >> regname;
+  if (!cmdstream) {
+    printf("Couldn't read register name\n");
+    return;
+  }
+
+  int val;
+  cmdstream >> hex >> val;
+  if (!cmdstream) {
+    printf("Couldn't read value\n");
+    return;
+  }
+
+  struct {string name; gb_ptr ptr;} regs_8[] = {
+    {"b", gb_reg_ptr(cpu, &cpu.bc.high)},
+    {"c", gb_reg_ptr(cpu, &cpu.bc.low)},
+    {"d", gb_reg_ptr(cpu, &cpu.de.high)},
+    {"e", gb_reg_ptr(cpu, &cpu.de.low)},
+    {"a", gb_reg_ptr(cpu, &cpu.af.high)},
+    {"f", gb_reg_ptr(cpu, &cpu.af.low)},
+    {"h", gb_reg_ptr(cpu, &cpu.hl.high)},
+    {"l", gb_reg_ptr(cpu, &cpu.hl.low)},
+  };
+  struct {string name; gb_ptr_16 ptr;} regs_16[] = {
+    {"af", gb_reg16_ptr(cpu, &cpu.af.full)},
+    {"bc", gb_reg16_ptr(cpu, &cpu.bc.full)},
+    {"de", gb_reg16_ptr(cpu, &cpu.de.full)},
+    {"hl", gb_reg16_ptr(cpu, &cpu.hl.full)},
+    {"pc", gb_reg16_ptr(cpu, &cpu.pc)},
+    {"sp", gb_reg16_ptr(cpu, &cpu.sp)},
+  };
+
+  bool recognized = 0;
+
+  for (int i = 0; i < sizeof(regs_8) / sizeof(regs_8[0]); i++){
+    if (regname.compare(regs_8[i].name) == 0) {
+      if ((val < 0) || (val > 0xff)) {
+        cout << "Bad value " << hex << val << " for register " << regname << "\n";
+        return;
+      }
+      regs_8[i].ptr.write(val);
+      recognized = 1;
+      break;
+    }
+  }
+
+  if (!recognized) {
+    for (int i = 0; i < sizeof(regs_16) / sizeof(regs_16[0]); i++){
+      if (regname.compare(regs_16[i].name) == 0) {
+        if ((val < 0) || (val > 0xffff)) {
+          cout << "Bad value " << hex << val << " for register " << regname << "\n";
+          return;
+        }
+        regs_8[i].ptr.write(val);
+        recognized = 1;
+        break;
+      }
+    }
+  }
+
+  if (recognized) {
+    // confirm write
+    cpu.printState();
+  } else {
+    cout << "Unrecognized register\n";
+  }
+}
+
 void cmd_step(CPU &cpu, stringstream &cmdstream) {
   cpu.tick();
   cpu.printState();
@@ -157,10 +227,12 @@ void cmd_clear(CPU &cpu, stringstream &cmdstream) {
 
 void cmd_continue(CPU &cpu, stringstream &cmdstream) {
   cout << "Continuing\n";
+  cpu.install_sigint();
   do {
     cpu.tick();
   } while (find(breakpoints.begin(), breakpoints.end(), cpu.pc)
            == breakpoints.end());
+  cpu.uninstall_sigint();
   cpu.printState();
 }
 
@@ -251,6 +323,7 @@ const struct {string name; void (*cmd)(CPU &, stringstream &);} cmds[] = {
   {"r", cmd_read},
   {"write", cmd_write},
   {"w", cmd_write},
+  {"wreg", cmd_wreg},
   {"step", cmd_step},
   {"s", cmd_step},
   {"break", cmd_break},
