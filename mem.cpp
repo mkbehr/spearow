@@ -133,7 +133,9 @@ uint8_t gb_ptr::read() {
       switch (addr) {
         // misc
       case REG_JOYPAD:
-        break;
+        // Pressed buttons are 0, unpressed are 1. For now, don't
+        // claim to be pressing all buttons at all times.
+        return 0x3f;
       case REG_SERIAL_DATA:
         break;
       case REG_SERIAL_CONTROL:
