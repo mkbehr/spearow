@@ -200,12 +200,14 @@ void CPU::display_tick(int cyclesElapsed) {
   if (cycles_to_next_scanline <= 0) {
     lcd_y = (lcd_y + 1) % (SCREEN_HEIGHT + VBLANK_HEIGHT);
     cycles_to_next_scanline += CPU_CYCLES_PER_SCANLINE;
+    // TODO: generate INT_LCDC according to the lcd status register
     if (lcd_y >= SCREEN_HEIGHT) {
       // we have started vblank; request the vblank interrupt
       interrupts_raised |= INT_VBLANK;
     }
     if (lcd_y == 0) {
       // we're out of vblank; unrequest vblank interrupt
+      // FIXME: this might not actually be real
       interrupts_raised &= ~INT_VBLANK;
     }
   }
@@ -228,7 +230,9 @@ void CPU::tick() {
 
   timer_tick(cyclesElapsed);
 
-  display_tick(cyclesElapsed);
+  if (lcd_control & 0x80) {
+    display_tick(cyclesElapsed);
+  }
 
   // Now break into the debugger, if requested
 
@@ -334,6 +338,13 @@ void CPU::disableInterrupts() {
   // TODO: this actually shouldn't disable interrupts until the next
   // instruction, at least in the case of DI
   interrupt_master_enable = 0;
+}
+
+void CPU::reset_lcd() {
+  // Call when 0 is written to bit 7 of REG_LCD_CONTROL.
+  lcd_y = 0;
+  cycles_to_next_frame = CPU_CYCLES_PER_FRAME;
+  cycles_to_next_scanline = CPU_CYCLES_PER_SCANLINE;
 }
 
 void CPU::printState() {

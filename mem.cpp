@@ -281,6 +281,9 @@ void gb_ptr::write(uint8_t to_write) {
       // COMPAT Are any of these masked?
       case REG_LCD_CONTROL:
         cpu.lcd_control = to_write;
+        if (!(cpu.lcd_control & 0x80)) {
+          cpu.reset_lcd();
+        }
         break;
       case REG_LCD_STATUS:
         cpu.lcd_status = to_write;

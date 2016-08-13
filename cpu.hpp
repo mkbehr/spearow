@@ -196,6 +196,8 @@ public:
   void disableInterrupts();
   void enableInterrupts();
 
+  void reset_lcd();
+
   std::vector<uint8_t> rom;
 
   // These have to be static to work with the signal handlers. This
