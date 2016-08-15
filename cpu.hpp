@@ -35,6 +35,7 @@ const unsigned int CPU_CYCLES_PER_FRAME = 70224;
 const unsigned int CPU_CYCLES_PER_SCANLINE = 456;
 
 const unsigned int RAM_SIZE = 0x2000;
+const unsigned int OAM_SIZE = 0xa0;
 const unsigned int HIGH_RAM_SIZE = 0x7f; // very top is IE register
 const unsigned int VRAM_SIZE = 0x2000;
 
@@ -146,6 +147,7 @@ public:
   uint8_t ram[RAM_SIZE];
   uint8_t highRam[HIGH_RAM_SIZE];
   uint8_t vram[VRAM_SIZE];
+  uint8_t oam[OAM_SIZE];
 
   uint8_t cartridge_type;
 

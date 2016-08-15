@@ -156,6 +156,7 @@ uint8_t gb_ptr::read() {
       case REG_LCD_CONTROL:
         return cpu.lcd_control;
       case REG_LCD_STATUS:
+        // TODO compute status
         return cpu.lcd_status;
       case REG_SCROLL_Y:
         return cpu.scroll_y;
@@ -180,6 +181,11 @@ uint8_t gb_ptr::read() {
       default:
         break;
       }
+    }
+
+    if ((OAM_BASE <= addr) &&
+        (addr < OAM_BASE + OAM_SIZE)) {
+      return cpu.oam[addr - OAM_BASE];
     }
 
     if ((HIGH_RAM_BASE <= addr) &&
@@ -265,20 +271,20 @@ void gb_ptr::write(uint8_t to_write) {
         break;
       case REG_DIVIDER:
         cpu.fine_divider = 0; // ignore given value
-        break;
+        return;
       case REG_TIMER_COUNT:
         cpu.timer_count = to_write;
-        break;
+        return;
       case REG_TIMER_MOD:
         cpu.timer_mod = to_write;
-        break;
+        return;
       case REG_TIMER_CONTROL:
         cpu.timer_control = to_write;
-        break;
+        return;
       case REG_INTERRUPT:
         // COMPAT Are these masks correct? Unclear.
         cpu.interrupts_raised = to_write & INT_ALL;
-        break;
+        return;
       // Video registers
       // COMPAT Are any of these masked?
       case REG_LCD_CONTROL:
@@ -286,42 +292,71 @@ void gb_ptr::write(uint8_t to_write) {
         if (!(cpu.lcd_control & 0x80)) {
           cpu.reset_lcd();
         }
-        break;
+        return;
       case REG_LCD_STATUS:
+        // TODO update interrupts
         cpu.lcd_status = to_write;
-        break;
+        return;
       case REG_SCROLL_Y:
         cpu.scroll_y = to_write;
-        break;
+        return;
       case REG_SCROLL_X:
         cpu.scroll_x = to_write;
-        break;
+        return;
       case REG_LCD_Y: // read-only
-        break;
+        return;
       case REG_LCD_Y_COMPARE:
         cpu.lcd_y_compare = to_write;
-        break;
+        return;
       case REG_DMA:
-        // TODO
-        break;
+      {
+        // COMPAT: in the original game boy, transfer address must be
+        // between 0x8000 and 0xdfff (what happens otherwise?)
+
+        // COMPAT: handle behavior when OAM is unavailable (the next
+        // 160 microseconds, or somewhere around 671 cpu clock cycles?
+        // official programming manual seems to say it's actually
+        // 160*4=640 cpu clock cycles.)
+
+        // COMPAT: this transfer should happen over time
+
+        // COMPAT: during the transfer, all memory except high RAM
+        // should be unavailable
+
+        // COMPAT: it's possible that the lower nibble of the flag
+        // byte isn't actually written here? unclear.
+
+        uint16_t dma_addr = to_write * 0x100;
+        for (int i = 0; i < OAM_SIZE; i++) {
+          cpu.oam[i] = gb_mem_ptr(cpu, dma_addr+i).read();
+        }
+
+        return;
+      }
       case REG_BG_PALETTE:
         cpu.bg_palette = to_write;
-        break;
+        return;
       case REG_OBJ_PALETTE_0:
         cpu.obj_palette_0 = to_write;
-        break;
+        return;
       case REG_OBJ_PALETTE_1:
         cpu.obj_palette_1 = to_write;
-        break;
+        return;
       case REG_WINDOW_Y:
         cpu.window_y = to_write;
-        break;
+        return;
       case REG_WINDOW_X:
         cpu.window_x = to_write;
-        break;
+        return;
       default:
         break;
       }
+    }
+
+    if ((OAM_BASE <= addr) &&
+        (addr < OAM_BASE + OAM_SIZE)) {
+      cpu.oam[addr - OAM_BASE] = to_write;
+      return;
     }
 
     if ((HIGH_RAM_BASE <= addr) &&
