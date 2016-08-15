@@ -122,7 +122,7 @@ class Screen;
 
 class CPU {
 public:
-  CPU();
+  CPU(bool displayTiles = false);
   ~CPU();
 
   void printState();

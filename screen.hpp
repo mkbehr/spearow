@@ -72,7 +72,9 @@ class CPU;
 
 class Screen {
 public:
-  Screen(CPU *c);
+  // not going to figure out all of C++'s various named-argument
+  // idioms right now - this will work for now
+  Screen(CPU *c, bool displayTiles=false);
   void draw();
 private:
   GLFWwindow *window;
@@ -82,15 +84,26 @@ private:
   // shader uniform locations
   GLint texUniform;
   // buffers
+  GLuint bgVao;
   GLuint bgVbo;
   // textures
   GLuint texName;
 
+  void drawMainWindow();
   void initShaders();
 
   // got weird dependency issues trying to make this a reference.
   // probably fixable.
   CPU *cpu;
+
+  // stuff for debug windows
+  GLFWwindow *tileWindow;
+  void initTileWindow();
+  void drawTileWindow();
+
+  GLuint tileVao;
+  GLuint tileVbo;
+  GLuint tileWindowTexName;
 };
 
 int initWindow(GLFWwindow**);

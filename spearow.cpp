@@ -64,10 +64,12 @@ void usage(int argc, char **argv, struct option *opts) {
 
 int main(int argc, char **argv) {
   int debug = 0;
+  int displayTiles = 0;
 
   static struct option opts[] = {
     {"help", no_argument, NULL, 'h'},
     {"debug", no_argument, &debug, 1},
+    {"display-tiles", no_argument, &displayTiles, 1},
     {0, 0, 0, 0}
   };
 
@@ -92,7 +94,7 @@ int main(int argc, char **argv) {
 
   char *rompath = argv[optind+0];
 
-  CPU cpu;
+  CPU cpu(displayTiles);
   cpu.loadRom(rompath);
 
   if (debug) {

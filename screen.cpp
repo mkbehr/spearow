@@ -57,8 +57,8 @@ void _checkGlErrors(int continue_after_err,
   }
 }
 
-Screen::Screen(CPU *c)
-  : cpu(c)
+Screen::Screen(CPU *c, bool displayTiles)
+  : cpu(c), tileWindow(NULL)
 {
   // Bit of a hack here: initializing the window will change the
   // working directory for some reason, so store it and change it back
@@ -78,11 +78,10 @@ Screen::Screen(CPU *c)
     die();
   }
 
-    // bind a vertex array
-  GLuint va;
-  glGenVertexArrays(1, &va);
+  // bind a vertex array
+  glGenVertexArrays(1, &bgVao);
   checkGlErrors(0);
-  glBindVertexArray(va);
+  glBindVertexArray(bgVao);
   checkGlErrors(0);
 
   initShaders();
@@ -98,9 +97,29 @@ Screen::Screen(CPU *c)
   glfwSwapBuffers(window);
   glfwPollEvents();
   checkGlErrors(0);
+
+  // TODO: consider a call to glfwSwapInterval to disable vsync
+
+  if (displayTiles) {
+    initTileWindow();
+  }
 }
 
 void Screen::draw() {
+  // switch contexts here, but don't bother unless we actually have
+  // multiple contexts to switch between.
+  if (tileWindow) {
+    glfwMakeContextCurrent(window);
+  }
+  drawMainWindow();
+
+  if (tileWindow) {
+    glfwMakeContextCurrent(tileWindow);
+    drawTileWindow();
+  }
+}
+
+void Screen::drawMainWindow() {
   const uint16_t bg_base = (cpu->lcd_control & LCDC_BG_CODE)
     ? 0x9c00 : 0x9800;
   const uint16_t tile_base = 0x8000;
@@ -135,6 +154,9 @@ void Screen::draw() {
       pixels[x + (y*160)] = out / 3.0;
     }
   }
+
+  glBindVertexArray(bgVao);
+  checkGlErrors(0);
 
   glBindBuffer(GL_ARRAY_BUFFER, bgVbo);
   glActiveTexture(GL_TEXTURE0);
@@ -185,6 +207,93 @@ void Screen::draw() {
   }
 }
 
+void Screen::drawTileWindow() {
+  const uint16_t tile_base = 0x8000;
+  const uint16_t n_tiles = (0x9800 - 0x8000) / 16;
+
+  // Display a 16*24 window of tiles
+
+  float pixels[16*8*24*8];
+
+  for (int y = 0; y < 24*8; y++) {
+    int tileY = y / 8;
+    for (int x = 0; x < 16*8; x++) {
+      int tileX = x / 8;
+
+      int tile_n = tileX + tileY * 16;
+      assert(tile_n < n_tiles);
+
+      uint16_t tile_addr = tile_base + tile_n * 16;
+
+      uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2).read();
+      uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2 + 1).read();
+
+      int out = 0;
+      if (low_byte & (1<<(7-(x%8)))) {
+        out += 1;
+      }
+      if (high_byte & (1<<(7-(x%8)))) {
+        out += 2;
+      }
+      pixels[x + (y*16*8)] = out / 3.0;
+    }
+  }
+
+  glBindVertexArray(tileVao);
+  checkGlErrors(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, tileVbo);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, tileWindowTexName);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 16*8, 24*8,
+               0, GL_RED, GL_FLOAT, pixels);
+  checkGlErrors(0);
+
+  glClearColor(0.0,0.0,0.0,0.0);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  // TODO what does this do again?
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  checkGlErrors(0);
+
+  glActiveTexture(GL_TEXTURE1);
+  checkGlErrors(0);
+  glBindTexture(GL_TEXTURE_2D, tileWindowTexName); // do we need this twice?
+  checkGlErrors(0);
+
+  vertex vs[6];
+  vs[0] = {0.0,0.0};
+  vs[1] = {0.0,1.0};
+  vs[2] = {1.0,1.0};
+  vs[3] = {0.0,0.0};
+  vs[4] = {1.0,1.0};
+  vs[5] = {1.0,0.0};
+
+  int stride = sizeof(vertex);
+  glBufferData(GL_ARRAY_BUFFER, 6 * stride, vs, GL_DYNAMIC_DRAW);
+  checkGlErrors(0);
+  glVertexAttribPointer(posAttrib, 2,
+                        GL_FLOAT, GL_FALSE, stride,
+                        (const GLvoid *) offsetof(vertex, x));
+  checkGlErrors(0);
+  glEnableVertexAttribArray(posAttrib);
+  checkGlErrors(0);
+
+  glUniform1i(texUniform, 1); // 1 corresponds to GL_TEXTURE1
+  checkGlErrors(0);
+
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+  checkGlErrors(0);
+
+
+  glfwSwapBuffers(tileWindow);
+  glfwPollEvents();
+  if (glfwWindowShouldClose(tileWindow)) {
+    die();
+  }
+}
+
 int initWindow(GLFWwindow **window_p) {
   /* Initialize the library */
   if (!glfwInit()) {
@@ -218,6 +327,64 @@ int initWindow(GLFWwindow **window_p) {
 
   *window_p = window;
   return 0;
+}
+
+void Screen::initTileWindow() {
+  // TODO refactor this, initWindow, and constructor. code reuse is
+  // weird here.
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  /* Create a windowed mode window and its OpenGL context */
+  const static char *tileWindowName = "Tiles";
+  const int tileWindowWidth = 16*8*2;
+  const int tileWindowHeight = 20*8*2;
+  tileWindow = glfwCreateWindow(tileWindowWidth, tileWindowHeight,
+                                tileWindowName, NULL,
+                                // share context with existing window
+                                window);
+  if (!tileWindow)
+    {
+      std::cerr << "glfwCreateWindow failed\n";
+      glfwTerminate();
+    }
+
+  if (glfwGetWindowAttrib(tileWindow, GLFW_CONTEXT_VERSION_MAJOR) < 3) {
+    std::cerr << "initWindow: Error: GL major version too low\n";
+    die();
+  }
+
+  // move tile window so it doesn't overlap with main window
+  int mainX, mainY;
+
+  glfwGetWindowPos(window, &mainX, &mainY);
+  glfwSetWindowPos(tileWindow, mainX - tileWindowWidth - 20, mainY);
+
+  glfwMakeContextCurrent(tileWindow);
+
+  glClearColor(0.0,0.0,0.0,0.0);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glfwSwapBuffers(window);
+  glfwPollEvents();
+  checkGlErrors(0);
+
+  glGenVertexArrays(1, &tileVao);
+  checkGlErrors(0);
+
+  glBindVertexArray(tileVao);
+  checkGlErrors(0);
+
+  glGenBuffers(1, &tileVbo);
+  glGenTextures(1, &tileWindowTexName);
+  checkGlErrors(0);
+
+  // not sure exactly how much is shared between the windows - they
+  // should use the same context, but it seems that we have to install
+  // the shader program again
+  glUseProgram(shader);
+  checkGlErrors(0);
 }
 
 GLint safeGetAttribLocation(GLuint program, const GLchar *name) {

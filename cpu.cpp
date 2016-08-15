@@ -13,7 +13,7 @@
 #include "mem.hpp"
 #include "opcodes.hpp"
 
-CPU::CPU()
+CPU::CPU(bool displayTiles)
   : af({.full=0}), bc({.full=0}), de({.full=0}), hl({.full=0}),
     sp(INITIAL_SP), pc(INITIAL_PC), next_pc(0),
     interrupts_raised(0),
@@ -24,7 +24,7 @@ CPU::CPU()
     rom_bank_low(1), ram_bank(0), mbc_mode(0),
     cycles_to_next_frame(CPU_CYCLES_PER_FRAME),
     cycles_to_next_scanline(CPU_CYCLES_PER_SCANLINE),
-    screen(new Screen(this))
+    screen(new Screen(this, displayTiles))
 {
   install_sigint();
 
