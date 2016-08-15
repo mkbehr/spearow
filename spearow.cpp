@@ -46,23 +46,48 @@ void printInstrCountTable() {
   }
 }
 
+void usage(int argc, char **argv, struct option *opts) {
+  const char *programname = "spearow";
+  if (argc > 0) {
+    programname = argv[0];
+  }
+
+  // TODO short args (if we ever have any)
+
+  printf("usage: %s", programname);
+  for (int i = 0; opts[i].name; i++) {
+    printf(" [--%s]", opts[i].name);
+  }
+
+  printf(" file\n");
+}
+
 int main(int argc, char **argv) {
   int debug = 0;
 
   static struct option opts[] = {
+    {"help", no_argument, NULL, 'h'},
     {"debug", no_argument, &debug, 1},
+    {0, 0, 0, 0}
   };
 
 
-  int c;
-  while ((c = getopt_long(argc, argv, "f:", opts, NULL)) != -1) {
+  int c, option_index;
+  while ((c = getopt_long(argc, argv, "f:", opts, &option_index)) != -1) {
     switch (c) {
     case 0:
       break;
+    case ':':
     case '?':
     default:
-      abort();
+      usage(argc, argv, opts);
+      exit(-1);
     }
+  }
+
+  if (optind >= argc) {
+    usage(argc, argv, opts);
+    exit(-1);
   }
 
   char *rompath = argv[optind+0];
