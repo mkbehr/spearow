@@ -122,8 +122,8 @@ void Screen::draw() {
 void Screen::drawMainWindow() {
   const uint16_t bg_base = (cpu->lcd_control & LCDC_BG_CODE)
     ? 0x9c00 : 0x9800;
-  const uint16_t tile_base = 0x8000;
-  const bool tile_signed = !!(cpu->lcd_control & LCDC_BG_CHR);
+  const bool tile_signed = !(cpu->lcd_control & LCDC_BG_CHR);
+  const uint16_t tile_base = tile_signed ? 0x9000 : 0x8000;
 
   // start slow, make it work
 
@@ -280,6 +280,7 @@ void Screen::drawTileWindow() {
   glEnableVertexAttribArray(posAttrib);
   checkGlErrors(0);
 
+  glUseProgram(shader); // why do I need this here? it is a mystery
   glUniform1i(texUniform, 1); // 1 corresponds to GL_TEXTURE1
   checkGlErrors(0);
 
