@@ -6,7 +6,7 @@
 
 const int MEM_WARN = 0;
 
-const int MONITOR_LINK_PORT = 1;
+const int MONITOR_LINK_PORT = 0;
 
 const uint16_t RAM_BASE = 0xc000;
 const uint16_t RAM_ECHO_BASE = 0xe000;
