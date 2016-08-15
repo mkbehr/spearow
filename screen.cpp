@@ -225,7 +225,7 @@ void Screen::drawBackground(float *pixels) {
 
 void Screen::drawSprites(float *pixels) {
   const uint16_t tile_base = 0x8000;
-  const bool big_sprites = !(cpu->lcd_control & LCDC_SPRITE_SIZE);
+  const bool big_sprites = !!(cpu->lcd_control & LCDC_SPRITE_SIZE);
 
   // TODO handle overlapping sprites
   // TODO handle sprite-per-scanline limitation
@@ -256,13 +256,12 @@ void Screen::drawSprites(float *pixels) {
       if ((screenY < 0) || (screenY >= SCREEN_HEIGHT)) {
         continue;
       }
-      int dy = flipVert ? (height - 1) - (top - screenY) : top - screenY;
+      int dy = flipVert ? (height - 1) - (screenY - top) : screenY - top;
       for (int screenX = left; screenX < left + 8; screenX++) {
         if ((screenX < 0) || (screenX >= SCREEN_WIDTH)) {
           continue;
         }
-        int dx = flipHoriz ? 7 - (left - screenX) : left - screenX;
-
+        int dx = flipHoriz ? (7 - (screenX - left)) : (screenX - left);
 
         uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (dy%8)*2).read();
         uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (dy%8)*2 + 1).read();
