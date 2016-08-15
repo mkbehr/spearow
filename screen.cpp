@@ -57,8 +57,8 @@ void _checkGlErrors(int continue_after_err,
   }
 }
 
-Screen::Screen(CPU *c, bool displayTiles)
-  : cpu(c), tileWindow(NULL)
+Screen::Screen(CPU *c, bool vsyncParam, bool displayTiles)
+  : vsync(vsyncParam), cpu(c), tileWindow(NULL)
 {
   // Bit of a hack here: initializing the window will change the
   // working directory for some reason, so store it and change it back
@@ -99,6 +99,9 @@ Screen::Screen(CPU *c, bool displayTiles)
   checkGlErrors(0);
 
   // TODO: consider a call to glfwSwapInterval to disable vsync
+  if (!vsync) {
+    glfwSwapInterval(0);
+  }
 
   if (displayTiles) {
     initTileWindow();
@@ -435,6 +438,10 @@ void Screen::initTileWindow() {
   glfwSetWindowPos(tileWindow, mainX - tileWindowWidth - 20, mainY);
 
   glfwMakeContextCurrent(tileWindow);
+
+  if (!vsync) {
+    glfwSwapInterval(0);
+  }
 
   glClearColor(0.0,0.0,0.0,0.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

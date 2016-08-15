@@ -84,7 +84,7 @@ class Screen {
 public:
   // not going to figure out all of C++'s various named-argument
   // idioms right now - this will work for now
-  Screen(CPU *c, bool displayTiles=false);
+  Screen(CPU *c, bool vsyncParam=true, bool displayTiles=false);
   void draw();
 private:
   GLFWwindow *window;
@@ -98,6 +98,8 @@ private:
   GLuint bgVbo;
   // textures
   GLuint texName;
+
+  bool vsync;
 
   void drawMainWindow();
   void drawBackground(float *pixels);
