@@ -120,39 +120,20 @@ void Screen::draw() {
 }
 
 void Screen::drawMainWindow() {
-  const uint16_t bg_base = (cpu->lcd_control & LCDC_BG_CODE)
-    ? 0x9c00 : 0x9800;
-  const bool tile_signed = !(cpu->lcd_control & LCDC_BG_CHR);
-  const uint16_t tile_base = tile_signed ? 0x9000 : 0x8000;
-
   // start slow, make it work
 
   float pixels[144*160];
 
-  for (int y = 0; y < 144; y++) {
-    int tileY = y / 8;
-    for (int x = 0; x < 160; x++) {
-      int tileX = x / 8;
-      int block = tileY * 32 + tileX;
+  if (cpu->lcd_control & LCDC_BG_DISPLAY) {
+    drawBackground(pixels);
+  }
 
+  if (cpu->lcd_control & LCDC_SPRITE_DISPLAY) {
+    drawSprites(pixels);
+  }
 
-      uint8_t tile_code = gb_mem_ptr(*cpu, bg_base + block).read();
-      int tile_n = tile_signed ? (int8_t) tile_code : tile_code;
-
-      uint16_t tile_addr = tile_base + tile_n * 16;
-
-      uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2).read();
-      uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2 + 1).read();
-
-      int out = 0;
-      if (low_byte & (1<<(7-(x%8)))) {
-        out += 1;
-      }
-      if (high_byte & (1<<(7-(x%8)))) {
-        out += 2;
-      }
-      pixels[x + (y*160)] = out / 3.0;
-    }
+  if (cpu->lcd_control & LCDC_WINDOW_DISPLAY) {
+    // TODO draw window
   }
 
   glBindVertexArray(bgVao);
@@ -204,6 +185,96 @@ void Screen::drawMainWindow() {
   glfwPollEvents();
   if (glfwWindowShouldClose(window)) {
     die();
+  }
+}
+
+void Screen::drawBackground(float *pixels) {
+  const uint16_t bg_base = (cpu->lcd_control & LCDC_BG_CODE)
+    ? 0x9c00 : 0x9800;
+  const bool tile_signed = !(cpu->lcd_control & LCDC_BG_CHR);
+  const uint16_t tile_base = tile_signed ? 0x9000 : 0x8000;
+
+  for (int y = 0; y < 144; y++) {
+    int tileY = y / 8;
+    for (int x = 0; x < 160; x++) {
+      int tileX = x / 8;
+      int block = tileY * 32 + tileX;
+
+      uint8_t tile_code = gb_mem_ptr(*cpu, bg_base + block).read();
+      int tile_n = tile_signed ? (int8_t) tile_code : tile_code;
+
+      uint16_t tile_addr = tile_base + tile_n * 16;
+
+      uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2).read();
+      uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2 + 1).read();
+
+      int out = 0;
+      if (low_byte & (1<<(7-(x%8)))) {
+        out += 1;
+      }
+      if (high_byte & (1<<(7-(x%8)))) {
+        out += 2;
+      }
+      pixels[x + (y*160)] = out / 3.0;
+    }
+  }
+}
+
+void Screen::drawSprites(float *pixels) {
+  const uint16_t tile_base = 0x8000;
+  const bool big_sprites = !(cpu->lcd_control & LCDC_SPRITE_SIZE);
+
+  // TODO handle overlapping sprites
+  // TODO handle sprite-per-scanline limitation
+
+  for (int i = 0; i < OAM_N_SPRITES; i++) {
+    uint16_t sprite_base = OAM_BASE + i * SPRITE_SIZE;
+    uint8_t y = gb_mem_ptr(*cpu, sprite_base + 0).read();
+    uint8_t x = gb_mem_ptr(*cpu, sprite_base + 1).read();
+    uint8_t chr = gb_mem_ptr(*cpu, sprite_base + 2).read();
+    if (big_sprites) {
+      // clear least-significant bit
+      chr &= ~1;
+    }
+    uint8_t flags = gb_mem_ptr(*cpu, sprite_base + 3).read();
+
+    uint16_t tile_addr = tile_base + chr * 16;
+
+    bool priority = !!(flags & SPRITE_PRIORITY);
+    bool flipVert = !!(flags & SPRITE_FLIP_V);
+    bool flipHoriz = !!(flags & SPRITE_FLIP_H);
+    bool palette = !!(flags & SPRITE_PALETTE);
+    int color = flags & SPRITE_COLOR;
+
+    int top = y - SPRITE_Y_OFFSET;
+    int left = x - SPRITE_X_OFFSET;
+    int height = big_sprites ? 16 : 8;
+    for (int screenY = top; screenY < top + height; screenY++) {
+      if ((screenY < 0) || (screenY >= SCREEN_HEIGHT)) {
+        continue;
+      }
+      int dy = flipVert ? (height - 1) - (top - screenY) : top - screenY;
+      for (int screenX = left; screenX < left + 8; screenX++) {
+        if ((screenX < 0) || (screenX >= SCREEN_WIDTH)) {
+          continue;
+        }
+        int dx = flipHoriz ? 7 - (left - screenX) : left - screenX;
+
+
+        uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (dy%8)*2).read();
+        uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (dy%8)*2 + 1).read();
+
+        int pixel = 0;
+        if (low_byte & (1<<(7-(dx%8)))) {
+          pixel += 1;
+        }
+        if (high_byte & (1<<(7-(dx%8)))) {
+          pixel += 2;
+        }
+        // TODO test priority and bg pixel
+        pixels[screenX + (screenY*160)] = pixel / 3.0;
+      }
+    }
   }
 }
 

@@ -54,6 +54,10 @@ const int VBLANK_HEIGHT = 10;
 // rows of 32 bytes each. Each byte is a tile number (signed or
 // unsigned index into the character data region).
 
+const int SPRITE_LIMIT = 10;
+const int SPRITE_X_OFFSET = 8;
+const int SPRITE_Y_OFFSET = 16;
+
 const uint8_t LCDC_BG_DISPLAY = 1<<0;
 const uint8_t LCDC_SPRITE_DISPLAY = 1<<1;
 const uint8_t LCDC_SPRITE_SIZE = 1<<2;
@@ -62,6 +66,12 @@ const uint8_t LCDC_BG_CHR = 1<<4;
 const uint8_t LCDC_WINDOW_DISPLAY = 1<<5;
 const uint8_t LCDC_WINDOW_CODE = 1<<6;
 const uint8_t LCDC_DISPLAY = 1<<7;
+
+const uint8_t SPRITE_COLOR = 0xf; // color mode
+const uint8_t SPRITE_PALETTE = 1<<4; // non-color mode
+const uint8_t SPRITE_FLIP_H = 1<<5;
+const uint8_t SPRITE_FLIP_V = 1<<6;
+const uint8_t SPRITE_PRIORITY = 1<<7;
 
 typedef struct vertex {
   float x;
@@ -90,6 +100,10 @@ private:
   GLuint texName;
 
   void drawMainWindow();
+  void drawBackground(float *pixels);
+  void drawSprites(float *pixels);
+  void drawWindow(float *pixels);
+
   void initShaders();
 
   // got weird dependency issues trying to make this a reference.

@@ -18,6 +18,11 @@ const uint16_t ROM_BASE = 0;
 const uint16_t ROM_SWITCHABLE_BASE = 0x4000;
 const uint16_t ROM_BANK_SIZE = 0x4000;
 
+const uint16_t OAM_BASE = 0xfe00;
+const uint16_t OAM_SIZE = 0xa0;
+const uint16_t SPRITE_SIZE = 0x20;
+const int OAM_N_SPRITES = OAM_SIZE / SPRITE_SIZE;
+
 const uint16_t IO_BASE = 0xff00;
 const uint16_t IO_SIZE = 0x80;
 
