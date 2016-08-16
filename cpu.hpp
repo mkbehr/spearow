@@ -181,6 +181,8 @@ public:
   uint8_t window_y;
   uint8_t window_x;
 
+  uint8_t joypad_mask;
+
   // halt state
   bool halted;
 

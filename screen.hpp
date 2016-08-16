@@ -73,6 +73,18 @@ const uint8_t SPRITE_FLIP_H = 1<<5;
 const uint8_t SPRITE_FLIP_V = 1<<6;
 const uint8_t SPRITE_PRIORITY = 1<<7;
 
+// also handling controller state here, since GLFW does that
+const uint8_t JOYPAD_DIRECTIONS = 1<<4; // port P14
+const uint8_t JOYPAD_BUTTONS = 1<<5; // port P15
+const uint8_t JOYPAD_RIGHT = 1<<0; // port P10
+const uint8_t JOYPAD_A = 1<<0; // port P10
+const uint8_t JOYPAD_LEFT = 1<<1; // port P11
+const uint8_t JOYPAD_B = 1<<1; // port P11
+const uint8_t JOYPAD_UP = 1<<2; // port P12
+const uint8_t JOYPAD_SELECT = 1<<2; // port P12
+const uint8_t JOYPAD_DOWN = 1<<3; // port P13
+const uint8_t JOYPAD_START = 1<<3; // port P13
+
 typedef struct vertex {
   float x;
   float y;
@@ -86,6 +98,7 @@ public:
   // idioms right now - this will work for now
   Screen(CPU *c, bool vsyncParam=true, bool displayTiles=false);
   void draw();
+  uint8_t getKeys(uint8_t inputFlags);
 private:
   GLFWwindow *window;
   GLuint shader;

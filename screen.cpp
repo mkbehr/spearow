@@ -92,6 +92,8 @@ Screen::Screen(CPU *c, bool vsyncParam, bool displayTiles)
 
   checkGlErrors(0);
 
+  glfwSetInputMode(window, GLFW_STICKY_KEYS, 1);
+
   glClearColor(0.0,0.0,0.0,0.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glfwSwapBuffers(window);
@@ -582,4 +584,43 @@ void Screen::initShaders(void) {
   posAttrib = safeGetAttribLocation(shader, "pos");
 
   texUniform = safeGetUniformLocation(shader, "tex");
+}
+
+uint8_t Screen::getKeys(uint8_t inputFlags) {
+  // COMPAT: I'm not sure what happens when both JOYPAD_DIRECTIONS and
+  // JOYPAD_BUTTONS bits are set low. This is just a guess.
+
+  // COMPAT: Unclear what the top nibble of this should be. Guessing
+  // it can be 0 for now.
+
+  uint8_t out = 0xf;
+  if (!(inputFlags & JOYPAD_DIRECTIONS)) {
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+      out &= ~JOYPAD_RIGHT;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+      out &= ~JOYPAD_LEFT;
+    }
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+      out &= ~JOYPAD_UP;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+      out &= ~JOYPAD_DOWN;
+    }
+  }
+  if (!(inputFlags & JOYPAD_BUTTONS)) {
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+      out &= ~JOYPAD_A;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+      out &= ~JOYPAD_B;
+    }
+    if (glfwGetKey(window, GLFW_KEY_BACKSLASH) == GLFW_PRESS) {
+      out &= ~JOYPAD_SELECT;
+    }
+    if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+      out &= ~JOYPAD_START;
+    }
+  }
+  return out;
 }

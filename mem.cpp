@@ -133,6 +133,7 @@ uint8_t gb_ptr::read() {
       switch (addr) {
         // misc
       case REG_JOYPAD:
+        return cpu.screen->getKeys(cpu.joypad_mask);
         // Pressed buttons are 0, unpressed are 1. For now, don't
         // claim to be pressing all buttons at all times.
         return 0x3f;
@@ -260,6 +261,7 @@ void gb_ptr::write(uint8_t to_write) {
         (addr < IO_BASE + IO_SIZE)) {
       switch (addr) {
       case REG_JOYPAD:
+        cpu.joypad_mask = to_write & (JOYPAD_DIRECTIONS | JOYPAD_BUTTONS);
         break;
       case REG_SERIAL_DATA:
         if (MONITOR_LINK_PORT) {
