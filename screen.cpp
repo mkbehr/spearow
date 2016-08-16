@@ -220,7 +220,10 @@ void Screen::drawBackground(float *pixels) {
       if (high_byte & (1<<(7-(x%8)))) {
         out += 2;
       }
-      pixels[x + (y*160)] = out / 3.0;
+
+      int shade = 3 - ((cpu->bg_palette & (3 << (out*2))) >> (out*2));
+
+      pixels[x + (y*160)] = shade / 3.0;
     }
   }
 }
@@ -248,7 +251,7 @@ void Screen::drawSprites(float *pixels) {
     bool priority = !!(flags & SPRITE_PRIORITY);
     bool flipVert = !!(flags & SPRITE_FLIP_V);
     bool flipHoriz = !!(flags & SPRITE_FLIP_H);
-    bool palette = !!(flags & SPRITE_PALETTE);
+    uint8_t palette = (flags & SPRITE_PALETTE) ? cpu->obj_palette_1 : cpu->obj_palette_0;
     int color = flags & SPRITE_COLOR;
 
     int top = y - SPRITE_Y_OFFSET;
@@ -275,8 +278,11 @@ void Screen::drawSprites(float *pixels) {
         if (high_byte & (1<<(7-(dx%8)))) {
           pixel += 2;
         }
-        // TODO test priority and bg pixel
-        pixels[screenX + (screenY*160)] = pixel / 3.0;
+        if (pixel) { // color 0 is transparent
+          int shade = 3 - ((palette & (3 << (pixel*2))) >> (pixel*2));
+          // TODO test priority and bg pixel
+          pixels[screenX + (screenY*160)] = shade / 3.0;
+        }
       }
     }
   }
