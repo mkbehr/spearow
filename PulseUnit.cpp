@@ -191,7 +191,7 @@ void PulseUnit::envelopeAct() {
 
 unsigned char PulseUnit::envelope() {
   // TODO
-  return 1;
+  return envelopeControl >> 4;
 }
 
 // unsigned char PulseUnit::envelope() {

@@ -55,7 +55,7 @@ public:
   // can't read frequency
   bool read_duration_enable(void);
 
-protected:
+private:
 
   float period();
   void sweepAct();

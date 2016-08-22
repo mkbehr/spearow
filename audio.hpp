@@ -9,8 +9,10 @@
 
 #include "cpu.hpp"
 #include "PulseUnit.hpp"
+#include "CustomWaveUnit.hpp"
 
 const int N_PULSE_UNITS = 2;
+const int N_UNITS = 3;
 
 const float SAMPLE_RATE = 44100.0;
 
@@ -43,6 +45,7 @@ public:
   float lastSample;
 
   std::vector<PulseUnit> pulses;
+  CustomWaveUnit custom;
 
 private:
   CPU *cpu;

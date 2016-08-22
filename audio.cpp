@@ -30,6 +30,7 @@ static int apuCallback (const void *inputBuffer, void *outputBuffer,
 Audio::Audio(CPU *cpu, float sampleRate)
   : time(0), sampleRate(sampleRate), timeStep(1.0/sampleRate),
     pulses(std::vector<PulseUnit>(N_PULSE_UNITS, PulseUnit(sampleRate))),
+    custom(sampleRate),
     cpu(cpu)
 {
 }
@@ -71,8 +72,9 @@ float Audio::tick(void) {
   float out = 0.0;
   for (int pulse_i = 0; pulse_i < N_PULSE_UNITS; pulse_i++) {
     // out += pulses[pulse_i].tick() * PULSE_MIX_COEFFICIENT;
-    out += pulses[pulse_i].tick() / (15.0 * N_PULSE_UNITS);
+    out += pulses[pulse_i].tick() / (15.0 * N_UNITS);
   }
+  out += custom.tick() / (15.0 * N_UNITS);
   //out = (out * 2.0) - 1.0;
   lastSample = out;
   time += timeStep;

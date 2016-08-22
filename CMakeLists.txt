@@ -55,10 +55,12 @@ target_link_libraries(screen
 
 add_library(pulseunit PulseUnit.cpp)
 
-add_library(audio audio.cpp pulseunit)
+add_library(customwaveunit CustomWaveUnit.cpp)
+
+add_library(audio audio.cpp pulseunit customwaveunit)
 target_link_libraries(audio ${PORTAUDIO_LIBRARIES})
 
-add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen debugger audio pulseunit)
+add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen debugger audio pulseunit customwaveunit)
 target_link_libraries(cpu-test
   ${GLFW_LIBRARIES}
   ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
@@ -67,7 +69,7 @@ target_link_libraries(cpu-test
   ${PORTAUDIO_LIBRARIES}
   )
 
-add_executable(spearow spearow.cpp cpu opcodes mem debugger screen audio pulseunit)
+add_executable(spearow spearow.cpp cpu opcodes mem debugger screen audio pulseunit customwaveunit)
 target_link_libraries(spearow
   ${GLFW_LIBRARIES}
   ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}

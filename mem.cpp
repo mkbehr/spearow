@@ -126,6 +126,11 @@ uint8_t gb_ptr::read() {
       }
     }
 
+    if ((WAVE_RAM_BASE <= addr) &&
+        (addr < WAVE_RAM_BASE + WAVE_RAM_SIZE)) {
+      return cpu.waveRam[addr - WAVE_RAM_BASE];
+    }
+
     // COMPAT: the official gameboy programming manual suggests that
     // the unused addresses here might just be regular RAM? Unclear.
     if ((IO_BASE <= addr) &&
@@ -177,6 +182,19 @@ uint8_t gb_ptr::read() {
       case REG_SOUND_2_4:
         // can only read duration-enable bit
         return cpu.audio->pulses.at(1).read_duration_enable() ? (1<<6) : 0;
+      case REG_SOUND_3_0:
+        return cpu.audio->custom.read_enabled() ? 0x80 : 0;
+      case REG_SOUND_3_1:
+        // write-only
+        return 0;
+      case REG_SOUND_3_2:
+        // wave unit handles bit-shifting
+        return cpu.audio->custom.read_envelope_control();
+      case REG_SOUND_3_3:
+        // write-only
+        return 0;
+      case REG_SOUND_3_4:
+        return cpu.audio->custom.read_duration_enable() ? (1<<6) : 0;
       // TODO other sound
       // display
       case REG_LCD_CONTROL:
@@ -281,6 +299,11 @@ void gb_ptr::write(uint8_t to_write) {
       }
     }
 
+    if ((WAVE_RAM_BASE <= addr) &&
+        (addr < WAVE_RAM_BASE + WAVE_RAM_SIZE)) {
+      cpu.waveRam[addr - WAVE_RAM_BASE] = to_write;
+      return;
+    }
 
     if ((IO_BASE <= addr) &&
         (addr < IO_BASE + IO_SIZE)) {
@@ -360,6 +383,34 @@ void gb_ptr::write(uint8_t to_write) {
         // reset bit
         if (to_write & (1<<7)) {
           cpu.audio->pulses.at(1).reset();
+        }
+        break;
+      case REG_SOUND_3_0:
+        cpu.audio->custom.write_enabled(to_write & 0x80);
+        break;
+      case REG_SOUND_3_1:
+        cpu.audio->custom.write_duration(to_write);
+        break;
+      case REG_SOUND_3_2:
+        // unit implementation handles bit shifting
+        cpu.audio->custom.write_envelope_control(to_write);
+        break;
+      case REG_SOUND_3_3:
+        cpu.audio->custom.write_frequency_low(to_write);
+        break;
+      case REG_SOUND_3_4:
+        // high frequency bits
+        cpu.audio->custom.write_frequency_high(to_write & 0x7);
+        // duration-enable bit
+        cpu.audio->custom.write_duration_enable(!!(to_write & (1<<6)));
+        // reset bit
+        if (to_write & (1<<7)) {
+          // load samples
+          std::vector<uint8_t> inSamples;
+          for (int i = 0; i < WAVE_RAM_SIZE; i++) {
+            inSamples.push_back(gb_mem_ptr(cpu, WAVE_RAM_BASE+i).read());
+          }
+          cpu.audio->custom.reset(inSamples);
         }
         break;
       // TODO other sound
