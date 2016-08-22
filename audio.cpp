@@ -20,8 +20,8 @@ static int apuCallback (const void *inputBuffer, void *outputBuffer,
   (void) inputBuffer; /* Prevent unused variable warning. */
 
   for(int i = 0; i < framesPerBuffer; i++) {
-    *out++ = apu->lastSample;
-    *out++ = apu->lastSample;
+    *out++ = apu->lastSampleLeft;
+    *out++ = apu->lastSampleRight;
     apu->tick();
   }
   return 0;
@@ -66,19 +66,41 @@ void Audio::apuInit(void) {
 
 }
 
-// Computes one sample. Returns the sample, and also stores it in the
-// lastSample member. Automatically advances the stored time.
-float Audio::tick(void) {
-  float out = 0.0;
-  for (int pulse_i = 0; pulse_i < N_PULSE_UNITS; pulse_i++) {
-    // out += pulses[pulse_i].tick() * PULSE_MIX_COEFFICIENT;
-    out += pulses[pulse_i].tick() / (15.0 * N_UNITS);
+// Computes one sample. Stores it in lastSampleLeft and
+// lastSampleRight. Automatically advances the stored time.
+void Audio::tick(void) {
+  float outLeft = 0.0;
+  float outRight = 0.0;
+
+  // TODO confirm how mixing works
+
+  float channelOne = pulses[0].tick() / (15.0 * N_UNITS);
+  if (cpu->audio_terminals & CHANNEL_1_LEFT) {
+    outLeft += channelOne;
   }
-  out += custom.tick() / (15.0 * N_UNITS);
-  //out = (out * 2.0) - 1.0;
-  lastSample = out;
+  if (cpu->audio_terminals & CHANNEL_1_RIGHT) {
+    outRight += channelOne;
+  }
+
+  float channelTwo = pulses[1].tick() / (15.0 * N_UNITS);
+  if (cpu->audio_terminals & CHANNEL_2_LEFT) {
+    outLeft += channelTwo;
+  }
+  if (cpu->audio_terminals & CHANNEL_2_RIGHT) {
+    outRight += channelTwo;
+  }
+
+  float channelThree = custom.tick() / (15.0 * N_UNITS);
+  if (cpu->audio_terminals & CHANNEL_3_LEFT) {
+    outLeft += channelThree;
+  }
+  if (cpu->audio_terminals & CHANNEL_3_RIGHT) {
+    outRight += channelThree;
+  }
+
+  lastSampleLeft = outLeft;
+  lastSampleRight = outRight;
   time += timeStep;
-  return out;
 }
 
 void Audio::frameTick() {

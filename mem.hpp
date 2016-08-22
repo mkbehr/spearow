@@ -59,6 +59,9 @@ const uint16_t REG_SOUND_4_BASE = 0xff20; // NR 41 through NR 44
 const uint16_t REG_SOUND_4_SIZE = 4;
 const uint16_t REG_SOUND_5_BASE = 0xff24; // NR 50 through NR 52
 const uint16_t REG_SOUND_5_SIZE = 3;
+const uint16_t REG_SOUND_5_0 = 0xff24; // NR 50: speaker volume and Vin
+const uint16_t REG_SOUND_5_1 = 0xff25; // NR 51: channels to speakers
+const uint16_t REG_SOUND_5_2 = 0xff26; // NR 52: channel enable
 const uint16_t WAVE_RAM_BASE = 0xff30;
 // display registers
 const uint16_t REG_LCD_CONTROL = 0xff40; // R/W; LCDC

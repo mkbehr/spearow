@@ -195,6 +195,8 @@ uint8_t gb_ptr::read() {
         return 0;
       case REG_SOUND_3_4:
         return cpu.audio->custom.read_duration_enable() ? (1<<6) : 0;
+      case REG_SOUND_5_1:
+        return cpu.audio_terminals;
       // TODO other sound
       // display
       case REG_LCD_CONTROL:
@@ -338,20 +340,20 @@ void gb_ptr::write(uint8_t to_write) {
       // sound
       case REG_SOUND_1_0:
         cpu.audio->pulses.at(0).write_sweep_control(to_write);
-        break;
+        return;
       case REG_SOUND_1_1:
         cpu.audio->pulses.at(0).write_duration_control(to_write & 0x3f);
         cpu.audio->pulses.at(0).write_duty_control(to_write >> 6);
-        break;
+        return;
       case REG_SOUND_1_2:
         cpu.audio->pulses.at(0).write_envelope_control(to_write);
-        break;
+        return;
       case REG_SOUND_1_3:
         // COMPAT: what happens when you write to one of these
         // registers but not the other, after the sweep unit has
         // changed the frequency?
         cpu.audio->pulses.at(0).write_frequency_low(to_write);
-        break;
+        return;
       case REG_SOUND_1_4:
         // high frequency bits
         cpu.audio->pulses.at(0).write_frequency_high(to_write & 0x7);
@@ -361,20 +363,20 @@ void gb_ptr::write(uint8_t to_write) {
         if (to_write & (1<<7)) {
           cpu.audio->pulses.at(0).reset();
         }
-        break;
+        return;
       case REG_SOUND_2_1:
         cpu.audio->pulses.at(1).write_duration_control(to_write & 0x3f);
         cpu.audio->pulses.at(1).write_duty_control(to_write >> 6);
-        break;
+        return;
       case REG_SOUND_2_2:
         cpu.audio->pulses.at(1).write_envelope_control(to_write);
-        break;
+        return;
       case REG_SOUND_2_3:
         // COMPAT: what happens when you write to one of these
         // registers but not the other, after the sweep unit has
         // changed the frequency?
         cpu.audio->pulses.at(1).write_frequency_low(to_write);
-        break;
+        return;
       case REG_SOUND_2_4:
         // high frequency bits
         cpu.audio->pulses.at(1).write_frequency_high(to_write & 0x7);
@@ -384,20 +386,20 @@ void gb_ptr::write(uint8_t to_write) {
         if (to_write & (1<<7)) {
           cpu.audio->pulses.at(1).reset();
         }
-        break;
+        return;
       case REG_SOUND_3_0:
         cpu.audio->custom.write_enabled(to_write & 0x80);
-        break;
+        return;
       case REG_SOUND_3_1:
         cpu.audio->custom.write_duration(to_write);
-        break;
+        return;
       case REG_SOUND_3_2:
         // unit implementation handles bit shifting
         cpu.audio->custom.write_envelope_control(to_write);
-        break;
+        return;
       case REG_SOUND_3_3:
         cpu.audio->custom.write_frequency_low(to_write);
-        break;
+        return;
       case REG_SOUND_3_4:
         // high frequency bits
         cpu.audio->custom.write_frequency_high(to_write & 0x7);
@@ -412,7 +414,11 @@ void gb_ptr::write(uint8_t to_write) {
           }
           cpu.audio->custom.reset(inSamples);
         }
-        break;
+        return;
+      case REG_SOUND_5_1:
+        printf("%04x = %02x\n", addr, to_write);
+        cpu.audio_terminals = to_write;
+        return;
       // TODO other sound
       // Video registers
       // COMPAT Are any of these masked?

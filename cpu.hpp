@@ -187,6 +187,8 @@ public:
 
   uint8_t joypad_mask;
 
+  uint8_t audio_terminals; // maps channels to speakers
+
   // halt state
   bool halted;
 
