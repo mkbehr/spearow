@@ -77,7 +77,8 @@ bool PulseUnit::read_duration_enable(void) {
 
 float PulseUnit::period() {
   // TODO move magic number
-  return (2048 - frequencyControl) * 8.0 / 4195304.0;
+  // not sure what the 4.0 is doing here but it sounds right
+  return (2048 - frequencyControl) * 8.0 * 4.0 / 4195304.0;
 }
 
 float PulseUnit::duty() {

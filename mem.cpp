@@ -315,40 +315,51 @@ void gb_ptr::write(uint8_t to_write) {
       // sound
       case REG_SOUND_1_0:
         cpu.audio->pulses.at(0).write_sweep_control(to_write);
-        //cpu.audio->pulses.at(0).sweep_control = to_write;
         break;
       case REG_SOUND_1_1:
         cpu.audio->pulses.at(0).write_duration_control(to_write & 0x3f);
         cpu.audio->pulses.at(0).write_duty_control(to_write >> 6);
-        // cpu.audio->pulses.at(0).duration_control = to_write & 0x3f;
-        // cpu.audio->pulses.at(0).duty_control = to_write >> 6;
         break;
       case REG_SOUND_1_2:
         cpu.audio->pulses.at(0).write_envelope_control(to_write);
-        // cpu.audio->pulses.at(0).envelope_control = to_write;
         break;
       case REG_SOUND_1_3:
         // COMPAT: what happens when you write to one of these
         // registers but not the other, after the sweep unit has
         // changed the frequency?
         cpu.audio->pulses.at(0).write_frequency_low(to_write);
-        // cpu.audio->pulses.at(0).frequency_control =
-        //   (cpu.audio->pulses.at(0).frequency_control & 0xff00) + to_write;
         break;
       case REG_SOUND_1_4:
         // high frequency bits
         cpu.audio->pulses.at(0).write_frequency_high(to_write & 0x7);
-        // cpu.audio->pulses.at(0).frequency_control =
-        //   ((cpu.audio->pulses.at(0).frequency_control & 0xff)
-        //    + ((to_write & 0x7) << 8));
-
         // duration-enable bit
         cpu.audio->pulses.at(0).write_duration_enable(!!(to_write & (1<<6)));
-        // cpu.audio->pulses.at(0).duration_enable = !!(to_write & (1<<6));
-
         // reset bit
         if (to_write & (1<<7)) {
           cpu.audio->pulses.at(0).reset();
+        }
+        break;
+      case REG_SOUND_2_1:
+        cpu.audio->pulses.at(1).write_duration_control(to_write & 0x3f);
+        cpu.audio->pulses.at(1).write_duty_control(to_write >> 6);
+        break;
+      case REG_SOUND_2_2:
+        cpu.audio->pulses.at(1).write_envelope_control(to_write);
+        break;
+      case REG_SOUND_2_3:
+        // COMPAT: what happens when you write to one of these
+        // registers but not the other, after the sweep unit has
+        // changed the frequency?
+        cpu.audio->pulses.at(1).write_frequency_low(to_write);
+        break;
+      case REG_SOUND_2_4:
+        // high frequency bits
+        cpu.audio->pulses.at(1).write_frequency_high(to_write & 0x7);
+        // duration-enable bit
+        cpu.audio->pulses.at(1).write_duration_enable(!!(to_write & (1<<6)));
+        // reset bit
+        if (to_write & (1<<7)) {
+          cpu.audio->pulses.at(1).reset();
         }
         break;
       // TODO other sound
