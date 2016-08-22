@@ -5,7 +5,7 @@
 
 CustomWaveUnit::CustomWaveUnit(float sampleRate)
   : sampleRate(sampleRate),
-    enabled(0),
+    enabled(0), frameStep(0),
     samples(CUSTOM_WAVE_SAMPLES, 0)
 {
 }
@@ -24,6 +24,7 @@ void CustomWaveUnit::reset(std::vector<uint8_t> inSamples) {
   // should be
   time = 0.0;
   loadSamples(inSamples);
+  // TODO should this also reset duration?
 }
 
 // Write the enabled bit. Also pass in a pointer to a vector of input
@@ -64,6 +65,22 @@ bool CustomWaveUnit::read_duration_enable(void) {
   return lengthCounterEnable;
 }
 
+void CustomWaveUnit::frameTick() {
+  // this should be called at a rate of 512 Hz
+  if ((frameStep % 2) == 0) { // length acts on 0, 2, 4, 6
+    lengthCounterAct();
+  }
+}
+
+void CustomWaveUnit::lengthCounterAct() {
+  if (duration) {
+    duration--;
+  }
+  if (!duration) {
+    enabled = 0;
+  }
+}
+
 float CustomWaveUnit::period() {
   // TODO move magic number
   // the extra 8 sounds right, but I haven't confirmed why it's there
@@ -82,6 +99,10 @@ uint8_t CustomWaveUnit::tick() {
   uint8_t out = samples.at(sample_i);
 
   out = out >> envelopeShift;
+
+  if (!enabled) {
+    out = 0;
+  }
 
   time += 1.0 / sampleRate;
   return out;

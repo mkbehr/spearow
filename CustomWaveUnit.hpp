@@ -30,13 +30,17 @@ public:
   // can't read frequency
   bool read_duration_enable(void);
 
-  void frameTick(); // TODO
+  void frameTick();
 
   uint8_t tick();
 
 private:
 
   float period();
+
+  int frameStep;
+
+  void lengthCounterAct();
 
   const float sampleRate;
   float time;

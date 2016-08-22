@@ -22,23 +22,11 @@ public:
   void updateEnvelope(bool loop, bool constant,
                       unsigned char timerReload);
 
-  void updateFrameCounter(bool mode);
-  void frameCounterQuarterFrame();
-  void frameCounterHalfFrame();
-
   void frameTick();
 
   unsigned char tick();
 
   void printState(void);
-
-  // SPEAROW: added things here
-  // uint8_t sweep_control;
-  // uint8_t duration_control;
-  // uint8_t duty_control;
-  // uint8_t envelope_control;
-  // uint16_t frequency_control;
-  // bool duration_enable;
 
   void write_sweep_control(uint8_t);
   void write_duration_control(uint8_t);

@@ -80,3 +80,10 @@ float Audio::tick(void) {
   time += timeStep;
   return out;
 }
+
+void Audio::frameTick() {
+  for (int pulse_i = 0; pulse_i < N_PULSE_UNITS; pulse_i++) {
+    pulses[pulse_i].frameTick();
+  }
+  custom.frameTick();
+}

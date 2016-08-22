@@ -164,7 +164,7 @@ int CPU::load_op_and_execute() {
 void CPU::timer_tick(int cyclesElapsed) {
   // Process timer and divider. See
   // http://gbdev.gg8.se/wiki/articles/Timer_Obscure_Behaviour for
-  // details.
+  // details. Also triggers audio frame tick.
   int clockCyclesElapsed = cyclesElapsed * 4;
   uint16_t newDivider = fine_divider + clockCyclesElapsed;
   // TODO: double-speed cpu checks bit 14 instead of bit 13
@@ -193,6 +193,10 @@ void CPU::timer_tick(int cyclesElapsed) {
     }
   }
   fine_divider = newDivider;
+}
+
+void CPU::audio_frame_tick() {
+  audio->frameTick();
 }
 
 void CPU::display_tick(int cyclesElapsed) {

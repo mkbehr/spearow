@@ -203,32 +203,13 @@ unsigned char PulseUnit::envelope() {
 // }
 
 void PulseUnit::lengthCounterAct() {
-  // TODO
+  if (lengthCounterValue) {
+    lengthCounterValue--;
+  }
+  if (!lengthCounterValue) {
+    enabled = 0;
+  }
 }
-
-// void PulseUnit::lengthCounterAct() {
-//   if ((!lengthCounterHalt) && (lengthCounterValue > 0)) {
-//     lengthCounterValue--;
-//   }
-//   if (!enabled) {
-//     // TODO check to see whether this is exactly the right behavior
-//     lengthCounterValue = 0;
-//   }
-// }
-
-// void PulseUnit::updateFrameCounter(bool mode) {
-//   frameCounterMode = mode;
-// }
-
-// void PulseUnit::frameCounterQuarterFrame() {
-//   sweepAct();
-// }
-
-// void PulseUnit::frameCounterHalfFrame() {
-//   lengthCounterAct();
-//   envelopeAct();
-//   sweepAct();
-// }
 
 unsigned char PulseUnit::tick()
 {

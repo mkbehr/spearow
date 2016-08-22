@@ -227,6 +227,7 @@ private:
   void handleInterrupts();
   int load_op_and_execute();
   void timer_tick(int cyclesElapsed);
+  void audio_frame_tick();
   void display_tick(int cyclesElapsed);
 
   // old SIGINT action handler
