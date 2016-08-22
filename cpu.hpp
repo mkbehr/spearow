@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "screen.hpp"
+#include "audio.hpp"
 
 #ifndef __BYTE_ORDER__
 #error Unknown byte order. Set __BYTE_ORDER__ to the appropriate value.
@@ -120,6 +121,7 @@ const uint8_t POSTLOGO_IOREG_INIT[128] =
 };
 
 class Screen;
+class Audio;
 
 class CPU {
 public:
@@ -187,6 +189,7 @@ public:
   bool halted;
 
   Screen *screen;
+  Audio *audio;
 
   uint8_t stack_pop();
   void stack_push(uint8_t x);

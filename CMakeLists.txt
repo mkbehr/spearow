@@ -28,8 +28,13 @@ find_library(OpenGL_FRAMEWORK OpenGL)
 find_library(IOKit_FRAMEWORK IOKit)
 find_library(CoreFoundation_FRAMEWORK CoreFoundation)
 find_library(CoreVideo_FRAMEWORK CoreVideo)
+find_library(CoreAudio_FRAMEWORK CoreAudio)
+find_library(CoreMIDI_FRAMEWORK CoreMIDI)
 
-include_directories(SYSTEM ${GLFW_INCLUDE_DIRS})
+set(Portaudio_FIND_REQUIRED TRUE)
+include(cmake_modules/FindPortAudio.cmake)
+
+include_directories(SYSTEM ${GLFW_INCLUDE_DIRS} ${PORTAUDIO_INCLUDE_DIRS})
 link_directories("${GLFW_LIBRARY_DIRS}" "${GPERFTOOLS_LIBRARY_DIRS}")
 
 add_library(mem mem.cpp)
@@ -48,18 +53,25 @@ target_link_libraries(screen
   ${CoreVideo_FRAMEWORK}
   )
 
-add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen debugger)
+add_library(pulseunit PulseUnit.cpp)
+
+add_library(audio audio.cpp pulseunit)
+target_link_libraries(audio ${PORTAUDIO_LIBRARIES})
+
+add_executable(cpu-test cpu-test.cpp cpu opcodes mem screen debugger audio pulseunit)
 target_link_libraries(cpu-test
   ${GLFW_LIBRARIES}
   ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
   ${IOKit_FRAMEWORK} ${CoreFoundation_FRAMEWORK}
   ${CoreVideo_FRAMEWORK}
+  ${PORTAUDIO_LIBRARIES}
   )
 
-add_executable(spearow spearow.cpp cpu opcodes mem debugger screen)
+add_executable(spearow spearow.cpp cpu opcodes mem debugger screen audio pulseunit)
 target_link_libraries(spearow
   ${GLFW_LIBRARIES}
   ${Cocoa_FRAMEWORK} ${OpenGL_FRAMEWORK}
   ${IOKit_FRAMEWORK} ${CoreFoundation_FRAMEWORK}
   ${CoreVideo_FRAMEWORK} ${GPERFTOOLS_PROFILER}
+  ${PORTAUDIO_LIBRARIES}
   )

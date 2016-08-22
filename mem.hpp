@@ -41,8 +41,11 @@ const uint16_t REG_TIMER_CONTROL = 0xff07; // R/W; TAC
 const uint16_t REG_INTERRUPT = 0xff0f; // R/W; IF
 const uint16_t REG_INTERRUPT_ENABLE = 0xffff; // R/W; IE
 // sound registers: R/W except NR 13, NR 23, NR 33
-const uint16_t REG_SOUND_1_BASE = 0xff10; // NR 10 through NR 14
-const uint16_t REG_SOUND_1_SIZE = 5;
+const uint16_t REG_SOUND_1_0 = 0xff10; // NR 10: sweep
+const uint16_t REG_SOUND_1_1 = 0xff11; // NR 11: duty and duration
+const uint16_t REG_SOUND_1_2 = 0xff12; // NR 12: envelope
+const uint16_t REG_SOUND_1_3 = 0xff13; // NR 13: frequency low
+const uint16_t REG_SOUND_1_4 = 0xff14; // NR 14: enable, duration enable, frequency high
 const uint16_t REG_SOUND_2_BASE = 0xff16; // NR 21 through NR 24
 const uint16_t REG_SOUND_2_SIZE = 4;
 const uint16_t REG_SOUND_3_BASE = 0xff1a; // NR 30 through NR 34

@@ -152,8 +152,22 @@ uint8_t gb_ptr::read() {
         return cpu.timer_control;
       case REG_INTERRUPT:
         return cpu.interrupts_raised;
-        // TODO sound
-        // display
+      // sound
+      case REG_SOUND_1_0:
+        return cpu.audio->pulses.at(0).read_sweep_control() & 0x7f;
+      case REG_SOUND_1_1:
+        // can read duty, but not duration control
+        return cpu.audio->pulses.at(0).read_duty_control() << 6;
+      case REG_SOUND_1_2:
+        return cpu.audio->pulses.at(0).read_envelope_control();
+      case REG_SOUND_1_3:
+        // write-only
+        return 0;
+      case REG_SOUND_1_4:
+        // can only read duration-enable bit
+        return cpu.audio->pulses.at(0).read_duration_enable() ? (1<<6) : 0;
+      // TODO other sound
+      // display
       case REG_LCD_CONTROL:
         return cpu.lcd_control;
       case REG_LCD_STATUS:
@@ -287,6 +301,46 @@ void gb_ptr::write(uint8_t to_write) {
         // COMPAT Are these masks correct? Unclear.
         cpu.interrupts_raised = to_write & INT_ALL;
         return;
+      // sound
+      case REG_SOUND_1_0:
+        cpu.audio->pulses.at(0).write_sweep_control(to_write);
+        //cpu.audio->pulses.at(0).sweep_control = to_write;
+        break;
+      case REG_SOUND_1_1:
+        cpu.audio->pulses.at(0).write_duration_control(to_write & 0x3f);
+        cpu.audio->pulses.at(0).write_duty_control(to_write >> 6);
+        // cpu.audio->pulses.at(0).duration_control = to_write & 0x3f;
+        // cpu.audio->pulses.at(0).duty_control = to_write >> 6;
+        break;
+      case REG_SOUND_1_2:
+        cpu.audio->pulses.at(0).write_envelope_control(to_write);
+        // cpu.audio->pulses.at(0).envelope_control = to_write;
+        break;
+      case REG_SOUND_1_3:
+        // COMPAT: what happens when you write to one of these
+        // registers but not the other, after the sweep unit has
+        // changed the frequency?
+        cpu.audio->pulses.at(0).write_frequency_low(to_write);
+        // cpu.audio->pulses.at(0).frequency_control =
+        //   (cpu.audio->pulses.at(0).frequency_control & 0xff00) + to_write;
+        break;
+      case REG_SOUND_1_4:
+        // high frequency bits
+        cpu.audio->pulses.at(0).write_frequency_high(to_write & 0x7);
+        // cpu.audio->pulses.at(0).frequency_control =
+        //   ((cpu.audio->pulses.at(0).frequency_control & 0xff)
+        //    + ((to_write & 0x7) << 8));
+
+        // duration-enable bit
+        cpu.audio->pulses.at(0).write_duration_enable(!!(to_write & (1<<6)));
+        // cpu.audio->pulses.at(0).duration_enable = !!(to_write & (1<<6));
+
+        // reset bit
+        if (to_write & (1<<7)) {
+          cpu.audio->pulses.at(0).reset();
+        }
+        break;
+      // TODO other sound
       // Video registers
       // COMPAT Are any of these masked?
       case REG_LCD_CONTROL:

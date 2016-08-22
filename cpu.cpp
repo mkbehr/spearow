@@ -24,12 +24,15 @@ CPU::CPU(bool vsync, bool displayTiles)
     rom_bank_low(1), ram_bank(0), mbc_mode(0),
     cycles_to_next_frame(CPU_CYCLES_PER_FRAME),
     cycles_to_next_scanline(CPU_CYCLES_PER_SCANLINE),
-    screen(new Screen(this, vsync, displayTiles))
+    screen(new Screen(this, vsync, displayTiles)),
+    audio(new Audio(this))
 {
   install_sigint();
 
   memset(ram, 0, sizeof(ram));
   memset(highRam, 0, sizeof(highRam));
+
+  audio->apuInit();
 
   // This sets up the CPU state to what it will be after the logo and
   // chime are displayed.
