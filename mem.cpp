@@ -165,7 +165,18 @@ uint8_t gb_ptr::read() {
         return 0;
       case REG_SOUND_1_4:
         // can only read duration-enable bit
-        return cpu.audio->pulses.at(0).read_duration_enable() ? (1<<6) : 0;
+        return cpu.audio->pulses.at(1).read_duration_enable() ? (1<<6) : 0;
+      case REG_SOUND_2_1:
+        // can read duty, but not duration control
+        return cpu.audio->pulses.at(1).read_duty_control() << 6;
+      case REG_SOUND_2_2:
+        return cpu.audio->pulses.at(1).read_envelope_control();
+      case REG_SOUND_2_3:
+        // write-only
+        return 0;
+      case REG_SOUND_2_4:
+        // can only read duration-enable bit
+        return cpu.audio->pulses.at(1).read_duration_enable() ? (1<<6) : 0;
       // TODO other sound
       // display
       case REG_LCD_CONTROL:

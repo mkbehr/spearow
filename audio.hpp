@@ -10,7 +10,7 @@
 #include "cpu.hpp"
 #include "PulseUnit.hpp"
 
-const int N_PULSE_UNITS = 1;
+const int N_PULSE_UNITS = 2;
 
 const float SAMPLE_RATE = 44100.0;
 

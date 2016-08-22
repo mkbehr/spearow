@@ -71,7 +71,7 @@ float Audio::tick(void) {
   float out = 0.0;
   for (int pulse_i = 0; pulse_i < N_PULSE_UNITS; pulse_i++) {
     // out += pulses[pulse_i].tick() * PULSE_MIX_COEFFICIENT;
-    out += pulses[pulse_i].tick() / 15.0;
+    out += pulses[pulse_i].tick() / (15.0 * N_PULSE_UNITS);
   }
   //out = (out * 2.0) - 1.0;
   lastSample = out;
