@@ -34,7 +34,7 @@ uint8_t PulseUnit::read_sweep_control(void) {
 
 
 void PulseUnit::write_duration_control(uint8_t in) {
-  lengthCounterValue = in & 0x3f;
+  lengthCounterValue = 64 - (in & 0x3f);
 }
 
 void PulseUnit::write_duty_control(uint8_t in) {

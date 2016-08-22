@@ -4,8 +4,8 @@
 #include <cmath>
 
 CustomWaveUnit::CustomWaveUnit(float sampleRate)
-  : sampleRate(sampleRate),
-    enabled(0), frameStep(0),
+  : frameStep(0), sampleRate(sampleRate),
+    enabled(0),
     samples(CUSTOM_WAVE_SAMPLES, 0)
 {
 }
@@ -38,7 +38,7 @@ bool CustomWaveUnit::read_enabled() {
 }
 
 void CustomWaveUnit::write_duration(uint8_t in) {
-  duration = in;
+  duration = 256 - in;
 }
 
 void CustomWaveUnit::write_envelope_control(uint8_t in) {

@@ -416,7 +416,6 @@ void gb_ptr::write(uint8_t to_write) {
         }
         return;
       case REG_SOUND_5_1:
-        printf("%04x = %02x\n", addr, to_write);
         cpu.audio_terminals = to_write;
         return;
       // TODO other sound
