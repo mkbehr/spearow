@@ -98,6 +98,13 @@ void Audio::tick(void) {
     outRight += channelThree;
   }
 
+  // SO2
+  float mixerLeftVolume = (((cpu->audio_volume >> 4) & 0x7) + 1) / 16.0;
+  outLeft *= mixerLeftVolume;
+  // SO1
+  float mixerRightVolume = ((cpu->audio_volume & 0x7) + 1) / 16.0;
+  outRight *= mixerRightVolume;
+
   lastSampleLeft = outLeft;
   lastSampleRight = outRight;
   time += timeStep;

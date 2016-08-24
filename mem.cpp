@@ -158,6 +158,7 @@ uint8_t gb_ptr::read() {
       case REG_INTERRUPT:
         return cpu.interrupts_raised;
       // sound
+      // COMPAT: unused bits should be set to 1, not 0
       case REG_SOUND_1_0:
         return cpu.audio->pulses.at(0).read_sweep_control() & 0x7f;
       case REG_SOUND_1_1:
@@ -195,6 +196,8 @@ uint8_t gb_ptr::read() {
         return 0;
       case REG_SOUND_3_4:
         return cpu.audio->custom.read_duration_enable() ? (1<<6) : 0;
+      case REG_SOUND_5_0:
+        return cpu.audio_volume;
       case REG_SOUND_5_1:
         return cpu.audio_terminals;
       // TODO other sound
@@ -409,11 +412,14 @@ void gb_ptr::write(uint8_t to_write) {
         if (to_write & (1<<7)) {
           // load samples
           std::vector<uint8_t> inSamples;
-          for (int i = 0; i < WAVE_RAM_SIZE; i++) {
+          for (unsigned int i = 0; i < WAVE_RAM_SIZE; i++) {
             inSamples.push_back(gb_mem_ptr(cpu, WAVE_RAM_BASE+i).read());
           }
           cpu.audio->custom.reset(inSamples);
         }
+        return;
+      case REG_SOUND_5_0:
+        cpu.audio_volume = to_write;
         return;
       case REG_SOUND_5_1:
         cpu.audio_terminals = to_write;
@@ -461,7 +467,7 @@ void gb_ptr::write(uint8_t to_write) {
         // byte isn't actually written here? unclear.
 
         uint16_t dma_addr = to_write * 0x100;
-        for (int i = 0; i < OAM_SIZE; i++) {
+        for (unsigned int i = 0; i < OAM_SIZE; i++) {
           cpu.oam[i] = gb_mem_ptr(cpu, dma_addr+i).read();
         }
 
