@@ -42,11 +42,11 @@ void CustomWaveUnit::write_duration(uint8_t in) {
 }
 
 void CustomWaveUnit::write_envelope_control(uint8_t in) {
-  envelopeShift = (in >> 5) & 0x3;
+  envelopeControl = (in >> 5) & 0x3;
 }
 
 uint8_t CustomWaveUnit::read_envelope_control() {
-  return (envelopeShift & 0x3) << 5;
+  return (envelopeControl & 0x3) << 5;
 }
 
 void CustomWaveUnit::write_frequency_low(uint8_t in) {
@@ -98,7 +98,11 @@ uint8_t CustomWaveUnit::tick() {
 
   uint8_t out = samples.at(sample_i);
 
-  out = out >> envelopeShift;
+  if (envelopeControl == 0) {
+    out = 0;
+  } else {
+    out = out >> (envelopeControl - 1);
+  }
 
   if (!enabled) {
     out = 0;

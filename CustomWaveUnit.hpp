@@ -45,7 +45,7 @@ private:
   const float sampleRate;
   float time;
   bool enabled;
-  uint8_t envelopeShift;
+  uint8_t envelopeControl;
   uint8_t duration;
   bool lengthCounterEnable;
   uint16_t frequencyControl;
