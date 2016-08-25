@@ -9,8 +9,13 @@ const int MEM_WARN = 0;
 const int MONITOR_LINK_PORT = 0;
 
 const uint16_t RAM_BASE = 0xc000;
+// COMPAT: the official manual says e000-fdff is forbidden. The
+// unofficial manual says it's an echo of internal RAM.
 const uint16_t RAM_ECHO_BASE = 0xe000;
 const uint16_t RAM_ECHO_TOP = 0xfdff;
+
+const uint16_t RAM_SWITCHABLE_BASE = 0xa000;
+const uint16_t RAM_SWITCHABLE_SIZE = 0x2000;
 
 const uint16_t HIGH_RAM_BASE = 0xff80;
 

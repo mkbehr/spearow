@@ -157,8 +157,8 @@ public:
 
   // MBC state.
   // TODO: find a better place to store MBC-specific state
-  int rom_bank_low;
-  int ram_bank; // or rom bank high
+  uint8_t rom_bank_low; // this is only the low bits in MBC1, actually
+  uint8_t ram_bank; // or rom bank high
   int mbc_mode; // TODO make an enum
 
   // interrupt state

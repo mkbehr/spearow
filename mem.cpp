@@ -70,9 +70,30 @@ int rom_bank_offset(CPU &cpu) {
       return rbl * ROM_BANK_SIZE;
     }
   }
+  case MBC_2:
+  {
+    // Only 16 ROM banks
+    // COMPAT: confirm what happens when an invalid bank number is selected
+    int bank = cpu.rom_bank_low & 0xf;
+    if (bank == 0) {
+      bank = 1;
+    }
+    return bank * ROM_BANK_SIZE;
+  }
+  case MBC_3:
+  {
+    // We just have one byte for selecting the rom bank
+    int bank = cpu.rom_bank_low;
+    if (bank == 0) {
+      bank = 1;
+    }
+    return bank * ROM_BANK_SIZE;
+  }
   default:
+    fprintf(stderr, "Unimplemented MBC %d: Can't interpret ROM bank offset\n",
+            cart_mbc_type(cpu));
+    exit(-1);
     // TODO
-    return 0;
   }
 }
 
@@ -92,45 +113,68 @@ uint8_t gb_ptr::read() {
   {
     const uint16_t addr = val.addr;
 
+    // 0x0000
     if ((ROM_BASE <= addr) &&
         (addr < ROM_BASE + ROM_BANK_SIZE)) {
 
       return cpu.rom.at(addr - ROM_BASE);
     }
 
+    // 0x4000
     if ((ROM_SWITCHABLE_BASE <= addr) &&
         (addr < ROM_SWITCHABLE_BASE + ROM_BANK_SIZE)) {
       return cpu.rom.at(addr - ROM_SWITCHABLE_BASE + rom_bank_offset(cpu));
     }
 
+    // 0x8000
     if ((VRAM_BASE <= addr) &&
         (addr < VRAM_BASE + VRAM_SIZE)) {
       return cpu.vram[addr - VRAM_BASE];
     }
 
+    // 0xa000
+    if ((RAM_SWITCHABLE_BASE <= addr) &&
+        (addr < RAM_SWITCHABLE_BASE + RAM_SWITCHABLE_SIZE)) {
+      switch (cart_mbc_type(cpu)) {
+      case MBC_NONE:
+        // TODO
+        break;
+      case MBC_1:
+        // TODO
+        break;
+      case MBC_2:
+        // TODO
+        break;
+      case MBC_3:
+        // TODO
+        // note: may be RAM or timer
+        break;
+      default:
+        // TODO
+        break;
+      }
+      // TODO
+    }
+
+    // 0xc000
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
       return cpu.ram[addr - RAM_BASE];
     }
 
+    // 0xe000
     if ((RAM_ECHO_BASE <= addr) &&
         (addr <= RAM_ECHO_TOP)) {
-      switch (cart_mbc_type(cpu)) {
-      case MBC_NONE:
-        return cpu.ram[addr - RAM_ECHO_BASE];
-      case MBC_1:// TODO implement external ram
-        //return externalram[addr - RAM_ECHO_BASE + ram_echo_offset(cpu)];
-        break;
-      default:
-        break;
-      }
+      return cpu.ram[addr - RAM_ECHO_BASE];
     }
 
+    // 0xff30
     if ((WAVE_RAM_BASE <= addr) &&
         (addr < WAVE_RAM_BASE + WAVE_RAM_SIZE)) {
       return cpu.waveRam[addr - WAVE_RAM_BASE];
     }
 
+    // 0xff00
     // COMPAT: the official gameboy programming manual suggests that
     // the unused addresses here might just be regular RAM? Unclear.
     if ((IO_BASE <= addr) &&
@@ -232,16 +276,19 @@ uint8_t gb_ptr::read() {
       }
     }
 
+    // 0xfe00
     if ((OAM_BASE <= addr) &&
         (addr < OAM_BASE + OAM_SIZE)) {
       return cpu.oam[addr - OAM_BASE];
     }
 
+    // 0xff80
     if ((HIGH_RAM_BASE <= addr) &&
         (addr < HIGH_RAM_BASE + HIGH_RAM_SIZE)) {
       return cpu.highRam[addr - HIGH_RAM_BASE];
     }
 
+    // 0xffff
     if (addr == REG_INTERRUPT_ENABLE) {
       return cpu.interrupts_enabled;
     }
@@ -250,9 +297,6 @@ uint8_t gb_ptr::read() {
       fprintf(stderr, "Reading 0 from unimplemented address %04x\n", addr);
     }
     return 0;
-
-    // fprintf(stderr, "Read from unimplemented address %04x\n", addr);
-    // exit(0);
   }
   case GB_PTR_REG:
   {
@@ -277,39 +321,59 @@ void gb_ptr::write(uint8_t to_write) {
   {
     const uint16_t addr = val.addr;
 
+    // 0x8000
     if ((VRAM_BASE <= addr) &&
         (addr < VRAM_BASE + VRAM_SIZE)) {
       cpu.vram[addr - VRAM_BASE] = to_write;
       return;
     }
 
-    // TODO: respect switchable RAM bank
+    // 0xa000
+    if ((RAM_SWITCHABLE_BASE <= addr) &&
+        (addr < RAM_SWITCHABLE_BASE + RAM_SWITCHABLE_SIZE)) {
+      switch (cart_mbc_type(cpu)) {
+      case MBC_NONE:
+        // TODO
+        break;
+      case MBC_1:
+        // TODO
+        break;
+      case MBC_2:
+        // TODO
+        break;
+      case MBC_3:
+        // TODO
+        // note: may be RAM or timer
+        break;
+      default:
+        // TODO
+        break;
+      }
+      // TODO
+    }
+
+    // 0xc000
     if ((RAM_BASE <= addr) &&
         (addr < RAM_BASE + RAM_SIZE)) {
       cpu.ram[addr - RAM_BASE] = to_write;
       return;
     }
 
+    // 0xe000
     if ((RAM_ECHO_BASE <= addr) &&
         (addr <= RAM_ECHO_TOP)) {
-      switch (cart_mbc_type(cpu)) {
-      case MBC_NONE:
-        cpu.ram[addr - RAM_ECHO_BASE] = to_write;
-        return;
-      case MBC_1:// TODO implement external ram
-        //return externalram[addr - RAM_ECHO_BASE + ram_echo_offset(cpu)];
-        break;
-      default:
-        break;
-      }
+      cpu.ram[addr - RAM_ECHO_BASE] = to_write;
+      return;
     }
 
+    // 0xff30
     if ((WAVE_RAM_BASE <= addr) &&
         (addr < WAVE_RAM_BASE + WAVE_RAM_SIZE)) {
       cpu.waveRam[addr - WAVE_RAM_BASE] = to_write;
       return;
     }
 
+    // 0xff00
     if ((IO_BASE <= addr) &&
         (addr < IO_BASE + IO_SIZE)) {
       switch (addr) {
@@ -321,9 +385,11 @@ void gb_ptr::write(uint8_t to_write) {
           printf("%c", to_write);
           fflush(stdout);
         }
-        break;
+        // TODO
+        return;
       case REG_SERIAL_CONTROL:
-        break;
+        // TODO
+        return;
       case REG_DIVIDER:
         cpu.fine_divider = 0; // ignore given value
         return;
@@ -493,32 +559,39 @@ void gb_ptr::write(uint8_t to_write) {
       }
     }
 
+    // 0xfe00
     if ((OAM_BASE <= addr) &&
         (addr < OAM_BASE + OAM_SIZE)) {
       cpu.oam[addr - OAM_BASE] = to_write;
       return;
     }
 
+    // 0xff80
     if ((HIGH_RAM_BASE <= addr) &&
         (addr < HIGH_RAM_BASE + HIGH_RAM_SIZE)) {
       cpu.highRam[addr - HIGH_RAM_BASE] = to_write;
       return;
     }
 
+    // 0xffff
     if (addr == REG_INTERRUPT_ENABLE) {
       // COMPAT Are these masks correct? Unclear.
       cpu.interrupts_enabled = to_write & INT_ALL;
+      return;
     }
 
     switch (cart_mbc_type(cpu)) {
     case MBC_NONE:
       break;
     case MBC_1:
+    {
       if (addr < 0x2000) {
         // RAM enable
-        fprintf(stderr, "Ignoring write to RAM enable\n");
+        fprintf(stderr, "Ignoring write to RAM enable (%02x -> %04x)\n",
+                to_write, addr);
       } else if (addr < 0x4000) {
-        // ROM bank lower bits
+        // ROM bank lower bits. Checking for zero here will prevent
+        // accessing banks 0x20, 0x40, and 0x60
         to_write = to_write & 0x1f;
         if (!to_write) {
           to_write = 1;
@@ -528,11 +601,71 @@ void gb_ptr::write(uint8_t to_write) {
       } else if (addr < 0x6000) {
         // ROM bank upper bits or RAM bank
         cpu.ram_bank = to_write & 0x03;
+        return;
       } else if (addr < 0x8000){
         cpu.mbc_mode = to_write & 1;
+        return;
       }
       break;
+    }
+    case MBC_2:
+    {
+      if (addr < 0x2000) {
+        // RAM enable
+        fprintf(stderr, "Ignoring write to RAM enable (%02x -> %04x)\n",
+                to_write, addr);
+      } else if (addr < 0x4000) {
+        // COMPAT: I have no idea why this condition is here or what
+        // happens if it isn't met
+        if (addr & 0x0100) {
+          // ROM bank
+          to_write = to_write & 0x0f;
+          if (!to_write) {
+            to_write = 1;
+          }
+          cpu.rom_bank_low = to_write;
+        } else if (MEM_WARN) {
+          // let's just print a debug message if we fall through this
+          // bizarre condition (addr & 0x0100)
+          fprintf(stderr,
+                  "Ignoring write to MBC2 ROM bank select because "
+                  "bit 8 of address was unset??? (%02x -> %04x)",
+                  to_write, addr);
+
+        }
+        return;
+      }
+      break;
+    }
+    case MBC_3:
+    {
+      if (addr < 0x2000) {
+        // RAM and timer enable
+        fprintf(stderr, "Ignoring write to RAM/timer enable (%02x -> %04x)\n",
+                to_write, addr);
+      } else if (addr < 0x4000) {
+        // ROM bank (all bits).
+        to_write &= 0x7f;
+        if (!to_write) {
+          to_write = 1;
+        }
+        cpu.rom_bank_low = to_write;
+        return;
+      } else if (addr < 0x6000) {
+        // RAM bank or timer register select
+        // TODO
+        return;
+      } else if (addr < 0x8000){
+        // Timer latch
+        // TODO
+        return;
+      }
+      break;
+    }
     default:
+      fprintf(stderr, "Unimplemented MBC %d: Can't interpret write of %02x to %04x\n",
+              cart_mbc_type(cpu), to_write, addr);
+      exit(-1);
       // TODO other MBCs
       break;
     }
