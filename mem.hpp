@@ -4,7 +4,7 @@
 
 #include "cpu.hpp"
 
-const int MEM_WARN = 1;
+const int MEM_WARN = 0;
 
 const int MONITOR_LINK_PORT = 0;
 

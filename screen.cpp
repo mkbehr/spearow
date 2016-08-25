@@ -133,12 +133,12 @@ void Screen::drawMainWindow() {
     drawBackground(pixels);
   }
 
-  if (cpu->lcd_control & LCDC_SPRITE_DISPLAY) {
-    drawSprites(pixels);
+  if (cpu->lcd_control & LCDC_WINDOW_DISPLAY) {
+    drawWindow(pixels);
   }
 
-  if (cpu->lcd_control & LCDC_WINDOW_DISPLAY) {
-    // TODO draw window
+  if (cpu->lcd_control & LCDC_SPRITE_DISPLAY) {
+    drawSprites(pixels);
   }
 
   glBindVertexArray(bgVao);
@@ -200,8 +200,16 @@ void Screen::drawBackground(float *pixels) {
   const uint16_t tile_base = tile_signed ? 0x9000 : 0x8000;
 
   for (int y = 0; y < 144; y++) {
+    int screenY = (y - cpu->scroll_y) % SCREEN_HEIGHT;
+    if (screenY < 0) {
+      screenY += SCREEN_HEIGHT;
+    }
     int tileY = y / 8;
     for (int x = 0; x < 160; x++) {
+      int screenX = (x - cpu->scroll_x) % SCREEN_WIDTH;
+      if (screenX < 0) {
+        screenX += SCREEN_WIDTH;
+      }
       int tileX = x / 8;
       int block = tileY * 32 + tileX;
 
@@ -223,7 +231,7 @@ void Screen::drawBackground(float *pixels) {
 
       int shade = 3 - ((cpu->bg_palette & (3 << (out*2))) >> (out*2));
 
-      pixels[x + (y*160)] = shade / 3.0;
+      pixels[screenX + (screenY*160)] = shade / 3.0;
     }
   }
 }
@@ -284,6 +292,49 @@ void Screen::drawSprites(float *pixels) {
           pixels[screenX + (screenY*160)] = shade / 3.0;
         }
       }
+    }
+  }
+}
+
+void Screen::drawWindow(float *pixels) {
+  const uint16_t bg_base = (cpu->lcd_control & LCDC_WINDOW_CODE)
+    ? 0x9c00 : 0x9800;
+  const bool tile_signed = !(cpu->lcd_control & LCDC_BG_CHR);
+  const uint16_t tile_base = tile_signed ? 0x9000 : 0x8000;
+
+  int screenTop = cpu->window_y;
+  int screenLeft = cpu->window_x - 7;
+  if ((screenTop >= SCREEN_HEIGHT) ||
+      (screenLeft < 0) ||
+      (screenLeft >= SCREEN_WIDTH)) {
+    return;
+  }
+  for (int y = screenTop; y < SCREEN_HEIGHT; y++) {
+    int tileY = (y - screenTop) / 8;
+    for (int x = screenLeft; x < SCREEN_WIDTH; x++) {
+      int tileX = (x - screenLeft) / 8;
+      int block = tileY * 32 + tileX;
+
+      uint8_t tile_code = gb_mem_ptr(*cpu, bg_base + block).read();
+      int tile_n = tile_signed ? (int8_t) tile_code : tile_code;
+
+      uint16_t tile_addr = tile_base + tile_n * 16;
+
+      uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2).read();
+      uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2 + 1).read();
+
+      int out = 0;
+      if (low_byte & (1<<(7-(x%8)))) {
+        out += 1;
+      }
+      if (high_byte & (1<<(7-(x%8)))) {
+        out += 2;
+      }
+
+      // window uses bg palette
+      int shade = 3 - ((cpu->bg_palette & (3 << (out*2))) >> (out*2));
+
+      pixels[x + (y*160)] = shade / 3.0;
     }
   }
 }
