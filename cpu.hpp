@@ -40,6 +40,8 @@ const unsigned int OAM_SIZE = 0xa0;
 const unsigned int HIGH_RAM_SIZE = 0x7f; // very top is IE register
 const unsigned int VRAM_SIZE = 0x2000;
 const unsigned int WAVE_RAM_SIZE = 0x10;
+const unsigned int MAX_EXPANSION_RAM_BANKS = 4; // TODO respect MBC type here
+const unsigned int EXPANSION_RAM_SIZE = 0x2000 * MAX_EXPANSION_RAM_BANKS;
 
 const int FLAG_Z = 1 << 7; // zero flag
 const int FLAG_N = 1 << 6; // subtract flag
@@ -152,6 +154,7 @@ public:
   uint8_t vram[VRAM_SIZE];
   uint8_t oam[OAM_SIZE];
   uint8_t waveRam[WAVE_RAM_SIZE];
+  uint8_t expansionRam[EXPANSION_RAM_SIZE];
 
   uint8_t cartridge_type;
 
@@ -160,6 +163,7 @@ public:
   uint8_t rom_bank_low; // this is only the low bits in MBC1, actually
   uint8_t ram_bank; // or rom bank high
   int mbc_mode; // TODO make an enum
+  bool expansionRamEnabled {0};
 
   // interrupt state
   uint8_t interrupts_raised;

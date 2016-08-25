@@ -97,6 +97,34 @@ int rom_bank_offset(CPU &cpu) {
   }
 }
 
+int ram_bank_offset(CPU &cpu) {
+  switch (cart_mbc_type(cpu)) {
+  case MBC_NONE:
+    return 0;
+  case MBC_1:
+  {
+    if (cpu.mbc_mode == 0) {
+      // ROM select mode
+      return 0;
+    } else {
+      // RAM select mode
+      return cpu.ram_bank * RAM_BANK_SIZE;
+    }
+  }
+  case MBC_2:
+    return 0;
+  case MBC_3:
+  {
+    return cpu.ram_bank * RAM_BANK_SIZE;
+  }
+  default:
+    fprintf(stderr, "Unimplemented MBC %d: Can't interpret RAM bank offset\n",
+            cart_mbc_type(cpu));
+    exit(-1);
+    // TODO other MBCs
+  }
+}
+
 // BEGIN GB_PTR
 
 gb_ptr::gb_ptr(CPU &c, const gb_ptr_type t, const gb_ptr_val v)
@@ -134,26 +162,23 @@ uint8_t gb_ptr::read() {
 
     // 0xa000
     if ((RAM_SWITCHABLE_BASE <= addr) &&
-        (addr < RAM_SWITCHABLE_BASE + RAM_SWITCHABLE_SIZE)) {
+        (addr < RAM_SWITCHABLE_BASE + RAM_BANK_SIZE)) {
       switch (cart_mbc_type(cpu)) {
-      case MBC_NONE:
-        // TODO
-        break;
-      case MBC_1:
-        // TODO
-        break;
-      case MBC_2:
-        // TODO
-        break;
       case MBC_3:
-        // TODO
-        // note: may be RAM or timer
+        if (cpu.ram_bank > 0x07) {
+          // This is actually the timer, not RAM
+          return 0; // TODO timer
+        }
         break;
       default:
-        // TODO
+        // TODO make sure nothing other than MBC3 cares about this
         break;
       }
-      // TODO
+      if (cpu.expansionRamEnabled) {
+          return cpu.expansionRam[addr - RAM_SWITCHABLE_BASE + ram_bank_offset(cpu)];
+        } else {
+          return 0;
+        }
     }
 
     // 0xc000
@@ -330,26 +355,22 @@ void gb_ptr::write(uint8_t to_write) {
 
     // 0xa000
     if ((RAM_SWITCHABLE_BASE <= addr) &&
-        (addr < RAM_SWITCHABLE_BASE + RAM_SWITCHABLE_SIZE)) {
+        (addr < RAM_SWITCHABLE_BASE + RAM_BANK_SIZE)) {
       switch (cart_mbc_type(cpu)) {
-      case MBC_NONE:
-        // TODO
-        break;
-      case MBC_1:
-        // TODO
-        break;
-      case MBC_2:
-        // TODO
-        break;
       case MBC_3:
-        // TODO
-        // note: may be RAM or timer
+        if (cpu.ram_bank > 0x07) {
+          // This is actually the timer, not RAM
+          return; // TODO timer
+        }
         break;
       default:
-        // TODO
+        // TODO make sure nothing other than MBC3 cares about this
         break;
       }
-      // TODO
+      if (cpu.expansionRamEnabled) {
+        cpu.expansionRam[addr - RAM_SWITCHABLE_BASE + ram_bank_offset(cpu)] = to_write;
+      }
+      return;
     }
 
     // 0xc000
@@ -379,7 +400,7 @@ void gb_ptr::write(uint8_t to_write) {
       switch (addr) {
       case REG_JOYPAD:
         cpu.joypad_mask = to_write & (JOYPAD_DIRECTIONS | JOYPAD_BUTTONS);
-        break;
+        return;
       case REG_SERIAL_DATA:
         if (MONITOR_LINK_PORT) {
           printf("%c", to_write);
@@ -587,8 +608,9 @@ void gb_ptr::write(uint8_t to_write) {
     {
       if (addr < 0x2000) {
         // RAM enable
-        fprintf(stderr, "Ignoring write to RAM enable (%02x -> %04x)\n",
-                to_write, addr);
+        // COMPAT: 0x0a enables RAM. Does anything else?
+        cpu.expansionRamEnabled = bool(to_write);
+        return;
       } else if (addr < 0x4000) {
         // ROM bank lower bits. Checking for zero here will prevent
         // accessing banks 0x20, 0x40, and 0x60
@@ -612,8 +634,9 @@ void gb_ptr::write(uint8_t to_write) {
     {
       if (addr < 0x2000) {
         // RAM enable
-        fprintf(stderr, "Ignoring write to RAM enable (%02x -> %04x)\n",
-                to_write, addr);
+        // COMPAT: 0x0a enables RAM. Does anything else?
+        cpu.expansionRamEnabled = bool(to_write);
+        return;
       } else if (addr < 0x4000) {
         // COMPAT: I have no idea why this condition is here or what
         // happens if it isn't met
@@ -641,8 +664,9 @@ void gb_ptr::write(uint8_t to_write) {
     {
       if (addr < 0x2000) {
         // RAM and timer enable
-        fprintf(stderr, "Ignoring write to RAM/timer enable (%02x -> %04x)\n",
-                to_write, addr);
+        // COMPAT: 0x0a enables RAM. Does anything else?
+        cpu.expansionRamEnabled = bool(to_write);
+        return;
       } else if (addr < 0x4000) {
         // ROM bank (all bits).
         to_write &= 0x7f;
@@ -653,7 +677,7 @@ void gb_ptr::write(uint8_t to_write) {
         return;
       } else if (addr < 0x6000) {
         // RAM bank or timer register select
-        // TODO
+        cpu.ram_bank = to_write & 0x0f;
         return;
       } else if (addr < 0x8000){
         // Timer latch
