@@ -199,18 +199,13 @@ void Screen::drawBackground(float *pixels) {
   const bool tile_signed = !(cpu->lcd_control & LCDC_BG_CHR);
   const uint16_t tile_base = tile_signed ? 0x9000 : 0x8000;
 
-  for (int y = 0; y < 144; y++) {
-    int screenY = (y - cpu->scroll_y) % SCREEN_HEIGHT;
-    if (screenY < 0) {
-      screenY += SCREEN_HEIGHT;
-    }
-    int tileY = y / 8;
-    for (int x = 0; x < 160; x++) {
-      int screenX = (x - cpu->scroll_x) % SCREEN_WIDTH;
-      if (screenX < 0) {
-        screenX += SCREEN_WIDTH;
-      }
-      int tileX = x / 8;
+  for (int screenY = 0; screenY < 144; screenY++) {
+    int scrollspaceY = (screenY + cpu->scroll_y) % 256;
+    int tileY = scrollspaceY / 8;
+    for (int screenX = 0; screenX < 160; screenX++) {
+      int scrollspaceX = (screenX + cpu->scroll_x) % 256;
+
+      int tileX = scrollspaceX / 8;
       int block = tileY * 32 + tileX;
 
       uint8_t tile_code = gb_mem_ptr(*cpu, bg_base + block).read();
@@ -218,14 +213,16 @@ void Screen::drawBackground(float *pixels) {
 
       uint16_t tile_addr = tile_base + tile_n * 16;
 
-      uint8_t low_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2).read();
-      uint8_t high_byte = gb_mem_ptr(*cpu, tile_addr + (y%8)*2 + 1).read();
+      uint8_t low_byte = gb_mem_ptr(*cpu,
+                                    tile_addr + (scrollspaceY%8)*2).read();
+      uint8_t high_byte = gb_mem_ptr(*cpu,
+                                     tile_addr + (scrollspaceY%8)*2 + 1).read();
 
       int out = 0;
-      if (low_byte & (1<<(7-(x%8)))) {
+      if (low_byte & (1<<(7-(scrollspaceX%8)))) {
         out += 1;
       }
-      if (high_byte & (1<<(7-(x%8)))) {
+      if (high_byte & (1<<(7-(scrollspaceX%8)))) {
         out += 2;
       }
 
