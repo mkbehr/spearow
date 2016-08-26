@@ -666,10 +666,10 @@ uint8_t Screen::getKeys(uint8_t inputFlags) {
     }
   }
   if (!(inputFlags & JOYPAD_BUTTONS)) {
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
       out &= ~JOYPAD_A;
     }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
       out &= ~JOYPAD_B;
     }
     if (glfwGetKey(window, GLFW_KEY_BACKSLASH) == GLFW_PRESS) {
